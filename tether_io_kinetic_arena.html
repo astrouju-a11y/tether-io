@@ -1,0 +1,3053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>TETHER.IO — Kinetic Arena</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@600;700&family=Outfit:wght@500;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background-color: #070b14;
+      font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+      color: #f8fafc;
+    }
+
+    #gameCanvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    .font-mono-num {
+      font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .glass-panel {
+      background: rgba(10, 16, 30, 0.72);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(56, 189, 248, 0.22);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .hud-panel {
+      background: rgba(9, 14, 26, 0.68);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .neon-title {
+      background: linear-gradient(135deg, #38bdf8 0%, #818cf8 48%, #f472b6 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 22px rgba(56, 189, 248, 0.42));
+    }
+
+    .btn-play {
+      background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 55%, #6366f1 100%);
+      box-shadow: 0 0 28px rgba(56, 189, 248, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      transition: transform 0.14s ease, box-shadow 0.18s ease, filter 0.18s ease;
+    }
+
+    .btn-play:hover {
+      transform: translateY(-2px) scale(1.015);
+      box-shadow: 0 0 38px rgba(56, 189, 248, 0.68), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+      filter: brightness(1.08);
+    }
+
+    .btn-play:active {
+      transform: translateY(1px) scale(0.985);
+    }
+
+    .color-swatch {
+      transition: transform 0.14s ease, box-shadow 0.14s ease;
+    }
+    .color-swatch.selected {
+      transform: scale(1.18);
+      box-shadow: 0 0 0 2px #0b1120, 0 0 0 4px #ffffff;
+    }
+
+    @keyframes fadeInScale {
+      from { opacity: 0; transform: scale(0.95) translateY(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .animate-modal {
+      animation: fadeInScale 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+  </style>
+</head>
+<body>
+  <!-- Main Fullscreen Game Canvas -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- ===================================================================== -->
+  <!-- IN-GAME HUD OVERLAY                                                   -->
+  <!-- ===================================================================== -->
+  <div id="hudOverlay" class="fixed inset-0 pointer-events-none hidden z-20">
+    <!-- Top-Left: Audio Mute, Live Status, FPS & Quality Toggle -->
+    <div class="fixed top-4 left-4 flex items-center gap-2 pointer-events-auto flex-wrap">
+      <button id="muteBtn" title="Toggle Sound (M)" class="hud-panel w-10 h-10 rounded-xl flex items-center justify-center text-slate-200 hover:text-cyan-300 hover:border-cyan-400/40 transition cursor-pointer">
+        <!-- Sound ON SVG -->
+        <svg id="iconSoundOn" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14" />
+        </svg>
+        <!-- Sound OFF SVG -->
+        <svg id="iconSoundOff" class="w-5 h-5 hidden text-rose-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6" />
+        </svg>
+      </button>
+
+      <button id="qualityBtn" title="Toggle Graphics Quality (HIGH / ECO)" class="hud-panel px-3 py-2 rounded-xl flex items-center gap-2 text-xs text-slate-300 hover:border-cyan-400/40 transition cursor-pointer">
+        <span id="hudFps" class="font-mono-num font-bold text-emerald-400">60 FPS</span>
+        <span class="text-slate-600">|</span>
+        <span id="hudQualityLabel" class="font-extrabold tracking-wider text-cyan-300">HIGH</span>
+      </button>
+
+      <div class="hud-panel px-3 py-2 rounded-xl hidden sm:flex items-center gap-2 text-xs text-slate-300">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span class="font-bold tracking-wide text-slate-200">PILOTS</span>
+        <span id="hudAliveCount" class="font-mono-num font-bold text-cyan-300">19</span>
+      </div>
+    </div>
+
+    <!-- Top-Right: Live Leaderboard -->
+    <div class="fixed top-4 right-4 w-52 sm:w-56 hud-panel rounded-2xl p-3 pointer-events-none">
+      <div class="flex items-center justify-between mb-2 pb-1.5 border-b border-slate-700/60">
+        <span class="text-[11px] font-extrabold tracking-widest uppercase text-cyan-300">Leaderboard</span>
+        <span class="text-[10px] font-mono-num text-slate-400">TOP 8</span>
+      </div>
+      <div id="leaderboardList" class="space-y-1 text-xs"></div>
+      <div id="leaderboardPlayerExtra" class="hidden mt-1.5 pt-1.5 border-t border-slate-700/60 text-xs"></div>
+    </div>
+
+    <!-- Bottom-Center: Score, Tier, HP & Whip Boost Bar -->
+    <div class="fixed bottom-4 left-1/2 -translate-x-1/2 w-[92vw] max-w-md hud-panel rounded-2xl px-4 py-3 pointer-events-none">
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center gap-2">
+          <span id="hudTierBadge" class="px-2.5 py-0.5 rounded-lg bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 text-[11px] font-black tracking-wider">TIER 1</span>
+          <span id="hudMegaHint" class="text-[11px] text-slate-400 hidden sm:inline">Mega-Asteroids at Tier 3</span>
+        </div>
+        <div class="flex items-center gap-3 text-xs">
+          <div class="text-slate-400">SCORE <span id="hudScore" class="font-mono-num font-bold text-white text-sm ml-1">0</span></div>
+          <div class="text-slate-400">KILLS <span id="hudKills" class="font-mono-num font-bold text-amber-300 text-sm ml-1">0</span></div>
+        </div>
+      </div>
+
+      <!-- Hull Integrity (HP) & Whip Boost Bars -->
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <div class="flex justify-between text-[10px] font-bold tracking-wider uppercase mb-1">
+            <span class="text-emerald-300">Hull Shield</span>
+            <span id="hudHpText" class="font-mono-num text-slate-300">100 / 100</span>
+          </div>
+          <div class="h-2 rounded-full bg-slate-800/90 overflow-hidden border border-slate-700/60">
+            <div id="hudHpBar" class="h-full bg-gradient-to-r from-emerald-500 to-teal-300 transition-all duration-100" style="width: 100%;"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="flex justify-between text-[10px] font-bold tracking-wider uppercase mb-1">
+            <span class="text-cyan-300">Whip Boost</span>
+            <span id="hudBoostText" class="font-mono-num text-slate-300">100%</span>
+          </div>
+          <div class="h-2 rounded-full bg-slate-800/90 overflow-hidden border border-slate-700/60">
+            <div id="hudBoostBar" class="h-full bg-gradient-to-r from-cyan-500 to-indigo-400 transition-all duration-75" style="width: 100%;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom-Right: Circular Radar Minimap -->
+    <div class="fixed bottom-4 right-4 hidden sm:flex flex-col items-center gap-1 pointer-events-none">
+      <div class="hud-panel rounded-full p-1.5">
+        <canvas id="minimapCanvas" width="136" height="136" class="block rounded-full"></canvas>
+      </div>
+      <div id="hudCoords" class="text-[10px] font-mono-num text-slate-400 bg-slate-900/70 px-2 py-0.5 rounded-full border border-slate-700/50">0, 0</div>
+    </div>
+
+    <!-- Mobile Touch Action Buttons (visible only on coarse touch devices) -->
+    <div id="mobileControls" class="fixed bottom-28 right-4 hidden flex-col gap-3 pointer-events-auto">
+      <button id="touchTetherBtn" class="w-16 h-16 rounded-full glass-panel border-cyan-400/50 text-cyan-300 font-black text-xs tracking-wider active:scale-95">
+        TETHER
+      </button>
+      <button id="touchBoostBtn" class="w-16 h-16 rounded-full glass-panel border-indigo-400/50 text-indigo-300 font-black text-xs tracking-wider active:scale-95">
+        BOOST
+      </button>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- LIVE ANIMATED START SCREEN OVERLAY                                    -->
+  <!-- ===================================================================== -->
+  <div id="startOverlay" class="fixed inset-0 z-30 flex items-center justify-center p-4 bg-slate-950/35">
+    <div class="glass-panel animate-modal w-full max-w-md rounded-3xl p-6 sm:p-8 text-center">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 text-[11px] font-bold tracking-widest uppercase mb-3">
+        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+        Live Kinetic Arena
+      </div>
+
+      <h1 class="text-5xl sm:text-6xl font-black tracking-tight neon-title mb-1.5">TETHER.IO</h1>
+      <p class="text-sm text-slate-300/90 mb-5">Magnetic-lasso physics combat. Latch, whip, deflect &amp; dominate.</p>
+
+      <!-- Nickname Input -->
+      <div class="mb-4 text-left">
+        <label for="nicknameInput" class="block text-[11px] font-bold tracking-widest uppercase text-slate-400 mb-1.5 ml-1">Pilot Callsign</label>
+        <input
+          id="nicknameInput"
+          type="text"
+          maxlength="14"
+          placeholder="Enter nickname..."
+          class="w-full px-4 py-3 rounded-xl bg-slate-900/85 border border-slate-700/80 text-white placeholder-slate-500 font-semibold focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/30 transition"
+        />
+      </div>
+
+      <!-- Ship Color Swatches -->
+      <div class="mb-5">
+        <div class="text-[11px] font-bold tracking-widest uppercase text-slate-400 mb-2">Ship Core Color</div>
+        <div id="colorSwatches" class="flex items-center justify-center gap-3"></div>
+      </div>
+
+      <!-- Play Button -->
+      <button id="playBtn" class="btn-play w-full py-3.5 rounded-2xl text-white font-black text-lg tracking-wider uppercase cursor-pointer mb-5">
+        Launch Into Arena
+      </button>
+
+      <!-- Controls Summary -->
+      <div class="grid grid-cols-2 gap-2.5 text-left text-xs bg-slate-900/60 rounded-2xl p-3.5 border border-slate-800/80">
+        <div class="flex items-start gap-2">
+          <span class="px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono-num font-bold text-[10px] shrink-0">MOUSE</span>
+          <span class="text-slate-300 leading-tight">Steer smoothly toward cursor</span>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-mono-num font-bold text-[10px] shrink-0">HOLD LMB</span>
+          <span class="text-slate-300 leading-tight">Tether &amp; whip; release to sling</span>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono-num font-bold text-[10px] shrink-0">DEFLECT</span>
+          <span class="text-slate-300 leading-tight">Catch enemy shots (+150 bonus)</span>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="px-1.5 py-0.5 rounded bg-pink-500/20 text-pink-300 font-mono-num font-bold text-[10px] shrink-0">SPACE/RMB</span>
+          <span class="text-slate-300 leading-tight">Whip Boost dash</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- GAME OVER STATS CARD                                                  -->
+  <!-- ===================================================================== -->
+  <div id="gameOverOverlay" class="fixed inset-0 z-30 hidden items-center justify-center p-4 bg-slate-950/55">
+    <div class="glass-panel animate-modal w-full max-w-sm rounded-3xl p-6 sm:p-7 text-center">
+      <div class="text-xs font-extrabold tracking-widest uppercase text-rose-400 mb-1">Hull Destroyed</div>
+      <h2 class="text-3xl font-black text-white mb-1">ELIMINATED</h2>
+      <p class="text-sm text-slate-300 mb-5">Taken out by <span id="goKiller" class="font-bold text-rose-300">Asteroid</span></p>
+
+      <div class="grid grid-cols-2 gap-3 mb-6">
+        <div class="bg-slate-900/75 border border-slate-800 rounded-2xl p-3">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Final Score</div>
+          <div id="goScore" class="font-mono-num text-2xl font-bold text-cyan-300 mt-0.5">0</div>
+        </div>
+        <div class="bg-slate-900/75 border border-slate-800 rounded-2xl p-3">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Eliminations</div>
+          <div id="goKills" class="font-mono-num text-2xl font-bold text-amber-300 mt-0.5">0</div>
+        </div>
+        <div class="bg-slate-900/75 border border-slate-800 rounded-2xl p-3">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Peak Rank</div>
+          <div id="goRank" class="font-mono-num text-xl font-bold text-indigo-300 mt-0.5">#1</div>
+        </div>
+        <div class="bg-slate-900/75 border border-slate-800 rounded-2xl p-3">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Time Survived</div>
+          <div id="goTime" class="font-mono-num text-xl font-bold text-emerald-300 mt-0.5">0:00</div>
+        </div>
+      </div>
+
+      <button id="playAgainBtn" class="btn-play w-full py-3.5 rounded-2xl text-white font-black text-base tracking-wider uppercase cursor-pointer mb-2.5">
+        Instant Respawn
+      </button>
+      <button id="backToMenuBtn" class="w-full py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 text-xs font-bold tracking-wider uppercase transition cursor-pointer">
+        Change Pilot / Color
+      </button>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- GAME ENGINE SCRIPT                                                    -->
+  <!-- ===================================================================== -->
+  <script>
+    (() => {
+      'use strict';
+
+      // =======================================================================
+      // 1. CONSTANTS & CONFIGURATION
+      // =======================================================================
+      const ARENA_RADIUS = 2250; // Circular arena centered at (0, 0)
+      const BOT_COUNT = 18;
+      const TARGET_SHARDS = 195;
+      const TARGET_ORBS = 30;
+      const TARGET_ASTEROIDS = 24;
+      const TARGET_MEGA_ASTEROIDS = 9;
+      const TARGET_VOLATILES = 11;
+
+      const MAX_PARTICLES_HIGH = 180;
+      const MAX_PARTICLES_ECO = 72;
+      const MAX_SHOCKWAVES = 32;
+      const MAX_FLOATING_TEXTS = 28;
+      const MAX_TRAIL_PTS = 14;
+
+      const PLAYER_COLORS = [
+        { name: 'Cyan',    hex: '#22d3ee' },
+        { name: 'Violet',  hex: '#a78bfa' },
+        { name: 'Magenta', hex: '#f472b6' },
+        { name: 'Emerald', hex: '#34d399' },
+        { name: 'Amber',   hex: '#fbbf24' },
+        { name: 'Crimson', hex: '#fb7185' }
+      ];
+
+      const BOT_COLORS = [
+        '#38bdf8', '#818cf8', '#f472b6', '#34d399',
+        '#fbbf24', '#fb7185', '#c084fc', '#2dd4bf', '#f97316'
+      ];
+
+      const BOT_NAMES = [
+        'VORTEX', 'SLINGSHOT', 'NOVA_9', 'KINETIC', 'ORBITAL', 'GRAVITON',
+        'WHIPLASH', 'PULSAR', 'QUASAR', 'ZENITH', 'HYPERION', 'FLUX',
+        'AETHER', 'COBALT', 'ECLIPSE', 'DRIFTER', 'TITAN', 'STRIKER',
+        'SYNAPSE', 'SPECTRE', 'SOLARIS', 'NEBULA', 'COMET', 'ION_CORE',
+        'APEX_7', 'VECTOR', 'TACHYON', 'BLITZ'
+      ];
+
+      const SHARD_COLORS = ['#38bdf8', '#a78bfa', '#34d399', '#f472b6', '#fbbf24'];
+
+      const TIERS = [
+        { tier: 1, minScore: 0,    radius: 21, tetherRange: 305, slingMult: 1.52, maxHp: 100, label: 'TIER 1' },
+        { tier: 2, minScore: 250,  radius: 23, tetherRange: 335, slingMult: 1.62, maxHp: 115, label: 'TIER 2' },
+        { tier: 3, minScore: 650,  radius: 25, tetherRange: 370, slingMult: 1.74, maxHp: 135, label: 'TIER 3' },
+        { tier: 4, minScore: 1300, radius: 27, tetherRange: 405, slingMult: 1.86, maxHp: 155, label: 'TIER 4' },
+        { tier: 5, minScore: 2300, radius: 29, tetherRange: 440, slingMult: 1.98, maxHp: 175, label: 'TIER 5' },
+        { tier: 6, minScore: 3800, radius: 31, tetherRange: 475, slingMult: 2.10, maxHp: 200, label: 'APEX'   }
+      ];
+
+      // =======================================================================
+      // 2. WEB AUDIO SYNTHESIZER (Zero External Assets + Voice Cooldowns)
+      // =======================================================================
+      class SoundEngine {
+        constructor() {
+          this.ctx = null;
+          this.muted = false;
+          this.shardCombo = 0;
+          this.lastShardTime = 0;
+          this.cooldowns = Object.create(null);
+          this.humOsc = null;
+          this.humGain = null;
+        }
+
+        canPlay(key, ms) {
+          const now = performance.now();
+          const prev = this.cooldowns[key] || 0;
+          if (now - prev < ms) return false;
+          this.cooldowns[key] = now;
+          return true;
+        }
+
+        ensureContext() {
+          if (this.muted) return null;
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return null;
+            this.ctx = new AudioCtx();
+          }
+          if (this.ctx.state === 'suspended') {
+            this.ctx.resume().catch(() => {});
+          }
+          return this.ctx;
+        }
+
+        toggleMute() {
+          this.muted = !this.muted;
+          if (this.muted) this.stopTetherHum();
+          return this.muted;
+        }
+
+        startTetherHum() {
+          const ctx = this.ensureContext();
+          if (!ctx || this.humOsc) return;
+          try {
+            const now = ctx.currentTime;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(105, now);
+            gain.gain.setValueAtTime(0.001, now);
+            gain.gain.linearRampToValueAtTime(0.045, now + 0.08);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            this.humOsc = osc;
+            this.humGain = gain;
+          } catch (_) {}
+        }
+
+        updateTetherHum(speedRatio) {
+          if (!this.humOsc || !this.ctx || this.muted) return;
+          const targetFreq = 105 + Math.min(speedRatio, 1.8) * 140;
+          this.humOsc.frequency.setTargetAtTime(targetFreq, this.ctx.currentTime, 0.05);
+        }
+
+        stopTetherHum() {
+          if (!this.humOsc || !this.ctx) return;
+          try {
+            const now = this.ctx.currentTime;
+            this.humGain.gain.cancelScheduledValues(now);
+            this.humGain.gain.setValueAtTime(this.humGain.gain.value, now);
+            this.humGain.gain.exponentialRampToValueAtTime(0.0008, now + 0.06);
+            this.humOsc.stop(now + 0.07);
+          } catch (_) {}
+          this.humOsc = null;
+          this.humGain = null;
+        }
+
+        playLatch() {
+          if (!this.canPlay('latch', 60)) return;
+          const ctx = this.ensureContext();
+          if (!ctx) return;
+          const now = ctx.currentTime;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(240, now);
+          osc.frequency.exponentialRampToValueAtTime(640, now + 0.09);
+          gain.gain.setValueAtTime(0.13, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.13);
+        }
+
+        playSling(power = 1) {
+          if (!this.canPlay('sling', 65)) return;
+          const ctx = this.ensureContext();
+          if (!ctx) return;
+          const now = ctx.currentTime;
+          const osc = ctx.createOscillator();
+          const filter = ctx.createBiquadFilter();
+          const gain = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(420 + Math.min(power, 2) * 170, now);
+          osc.frequency.exponentialRampToValueAtTime(105, now + 0.19);
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(1500, now);
+          filter.frequency.exponentialRampToValueAtTime(240, now + 0.19);
+          gain.gain.setValueAtTime(0.11, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.21);
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.22);
+        }
+
+        playDeflect() {
+          if (!this.canPlay('deflect', 80)) return;
+          const ctx = this.ensureContext();
+          if (!ctx) return;
+          const now = ctx.currentTime;
+          const notes = [784, 1175, 1568];
+          for (let i = 0; i < notes.length; i++) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            const t = now + i * 0.045;
+            osc.frequency.setValueAtTime(notes[i], t);
+            gain.gain.setValueAtTime(0.12, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.22);
+          }
+        }
+
+        playShard() {
+          if (!this.canPlay('shard', 45)) return;
+          const ctx = this.ensureContext();
+          if (!ctx) return;
+          const now = ctx.currentTime;
+          if (now - this.lastShardTime < 0.7) {
+            this.shardCombo = Math.min(this.shardCombo + 1, 10);
+          } else {
+            this.shardCombo = 0;
+          }
+          this.lastShardTime = now;
+          const baseFreq = 520 * Math.pow(1.06, this.shardCombo);
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(baseFreq, now);
+          osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.35, now + 0.08);
+          gain.gain.setValueAtTime(0.075, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.11);
+        }
+
+        playBoost() {
+          if (!this.canPlay('boost', 150)) return;
+          const ctx = this.ensureContext();
+          if (!ctx) return;
+          const now = ctx.currentTime;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(160, now);
+          osc.frequency.exponentialRampToValueAtTime(390, now + 0.14);
+          gain.gain.setValueAtTime(0.09, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.17);
+        }
+
+        playHit(heavy = false) {
+          if (!this.canPlay('hit', 65)) return;
+          const ctx = this.ensureContext();
+          if (!ctx) return;
+          const now = ctx.currentTime;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = heavy ? 'sawtooth' : 'square';
+          osc.frequency.setValueAtTime(heavy ? 165 : 230, now);
+          osc.frequency.exponentialRampToValueAtTime(42, now + (heavy ? 0.22 : 0.12));
+          gain.gain.setValueAtTime(heavy ? 0.16 : 0.1, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + (heavy ? 0.24 : 0.14));
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.25);
+        }
+
+        playExplosion(vol = 0.2) {
+          if (!this.canPlay('explosion', 95)) return;
+          const ctx = this.ensureContext();
+          if (!ctx) return;
+          const now = ctx.currentTime;
+
+          const bufferSize = Math.floor(ctx.sampleRate * 0.32);
+          const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.28));
+          }
+          const noise = ctx.createBufferSource();
+          noise.buffer = buffer;
+          const filter = ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(880, now);
+          filter.frequency.exponentialRampToValueAtTime(85, now + 0.3);
+          const gain = ctx.createGain();
+          gain.gain.setValueAtTime(vol, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(ctx.destination);
+          noise.start(now);
+
+          const sub = ctx.createOscillator();
+          const subGain = ctx.createGain();
+          sub.type = 'sine';
+          sub.frequency.setValueAtTime(115, now);
+          sub.frequency.exponentialRampToValueAtTime(30, now + 0.28);
+          subGain.gain.setValueAtTime(vol * 0.9, now);
+          subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+          sub.connect(subGain);
+          subGain.connect(ctx.destination);
+          sub.start(now);
+          sub.stop(now + 0.31);
+        }
+
+        playTierUp() {
+          if (!this.canPlay('tierup', 260)) return;
+          const ctx = this.ensureContext();
+          if (!ctx) return;
+          const now = ctx.currentTime;
+          const notes = [440, 554.37, 659.25, 880];
+          for (let i = 0; i < notes.length; i++) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            const t = now + i * 0.055;
+            osc.frequency.setValueAtTime(notes[i], t);
+            gain.gain.setValueAtTime(0.11, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.24);
+          }
+        }
+      }
+
+      const sound = new SoundEngine();
+
+      // =======================================================================
+      // 3. OFFSCREEN SPRITE CACHE (Zero ctx.shadowBlur in Render Loop)
+      // =======================================================================
+      const sprites = {
+        shards: new Map(),
+        particles: new Map(),
+        glows: new Map(),
+        orbDefault: null,
+        volatileCore: null,
+        crown: null
+      };
+
+      function createOffscreen(w, h) {
+        const c = document.createElement('canvas');
+        c.width = w;
+        c.height = h;
+        return c;
+      }
+
+      function getShardSprite(color) {
+        let sp = sprites.shards.get(color);
+        if (sp) return sp;
+        const size = 44;
+        const half = size / 2;
+        const c = createOffscreen(size, size);
+        const g = c.getContext('2d');
+        g.translate(half, half);
+        g.shadowColor = color;
+        g.shadowBlur = 12;
+        g.fillStyle = color;
+        g.beginPath();
+        g.moveTo(0, -10);
+        g.lineTo(7.5, 0);
+        g.lineTo(0, 10);
+        g.lineTo(-7.5, 0);
+        g.closePath();
+        g.fill();
+        g.shadowBlur = 0;
+        g.fillStyle = 'rgba(255,255,255,0.7)';
+        g.beginPath();
+        g.moveTo(0, -4.5);
+        g.lineTo(3.4, 0);
+        g.lineTo(0, 4.5);
+        g.lineTo(-3.4, 0);
+        g.closePath();
+        g.fill();
+        sprites.shards.set(color, c);
+        return c;
+      }
+
+      function getParticleSprite(color) {
+        let sp = sprites.particles.get(color);
+        if (sp) return sp;
+        const size = 24;
+        const half = size / 2;
+        const c = createOffscreen(size, size);
+        const g = c.getContext('2d');
+        const grad = g.createRadialGradient(half, half, 1, half, half, half);
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(0.35, color);
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = grad;
+        g.fillRect(0, 0, size, size);
+        sprites.particles.set(color, c);
+        return c;
+      }
+
+      function getGlowSprite(color) {
+        let sp = sprites.glows.get(color);
+        if (sp) return sp;
+        const size = 96;
+        const half = size / 2;
+        const c = createOffscreen(size, size);
+        const g = c.getContext('2d');
+        const grad = g.createRadialGradient(half, half, 4, half, half, half);
+        grad.addColorStop(0, color);
+        grad.addColorStop(0.42, color);
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        g.globalAlpha = 0.42;
+        g.fillStyle = grad;
+        g.fillRect(0, 0, size, size);
+        sprites.glows.set(color, c);
+        return c;
+      }
+
+      function buildSpriteCache() {
+        const palette = [
+          ...SHARD_COLORS,
+          ...BOT_COLORS,
+          ...PLAYER_COLORS.map(c => c.hex),
+          '#ffffff', '#fb923c', '#fef08a', '#22d3ee', '#818cf8'
+        ];
+        for (let i = 0; i < palette.length; i++) {
+          getShardSprite(palette[i]);
+          getParticleSprite(palette[i]);
+          getGlowSprite(palette[i]);
+        }
+
+        // Pre-rendered Kinetic Orb
+        {
+          const size = 76;
+          const half = size / 2;
+          const c = createOffscreen(size, size);
+          const g = c.getContext('2d');
+          g.translate(half, half);
+          g.shadowColor = '#38bdf8';
+          g.shadowBlur = 16;
+          const grad = g.createRadialGradient(0, 0, 2, 0, 0, 17);
+          grad.addColorStop(0, '#ffffff');
+          grad.addColorStop(0.45, '#38bdf8');
+          grad.addColorStop(1, '#0f172a');
+          g.fillStyle = grad;
+          g.beginPath();
+          g.arc(0, 0, 17, 0, Math.PI * 2);
+          g.fill();
+          g.shadowBlur = 0;
+          g.strokeStyle = '#e0f2fe';
+          g.lineWidth = 2;
+          g.stroke();
+          sprites.orbDefault = c;
+        }
+
+        // Pre-rendered Volatile Explosive Core
+        {
+          const size = 96;
+          const half = size / 2;
+          const c = createOffscreen(size, size);
+          const g = c.getContext('2d');
+          g.translate(half, half);
+          g.shadowColor = '#fb923c';
+          g.shadowBlur = 20;
+          g.fillStyle = '#ea580c';
+          g.strokeStyle = '#fef08a';
+          g.lineWidth = 2.5;
+          g.beginPath();
+          const spikes = 8;
+          for (let i = 0; i < spikes * 2; i++) {
+            const r = i % 2 === 0 ? 23 : 15.6;
+            const a = (i / (spikes * 2)) * Math.PI * 2;
+            if (i === 0) g.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+            else g.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+          }
+          g.closePath();
+          g.fill();
+          g.stroke();
+          g.shadowBlur = 0;
+          g.fillStyle = '#fef08a';
+          g.beginPath();
+          g.arc(0, 0, 8.2, 0, Math.PI * 2);
+          g.fill();
+          sprites.volatileCore = c;
+        }
+
+        // Pre-rendered Golden Crown (#1 Leader)
+        {
+          const size = 48;
+          const half = size / 2;
+          const c = createOffscreen(size, size);
+          const g = c.getContext('2d');
+          g.translate(half, half);
+          g.shadowColor = '#fbbf24';
+          g.shadowBlur = 12;
+          g.fillStyle = '#fbbf24';
+          g.beginPath();
+          g.moveTo(-10, 6);
+          g.lineTo(-12, -5);
+          g.lineTo(-5, 0);
+          g.lineTo(0, -8);
+          g.lineTo(5, 0);
+          g.lineTo(12, -5);
+          g.lineTo(10, 6);
+          g.closePath();
+          g.fill();
+          sprites.crown = c;
+        }
+      }
+
+      // =======================================================================
+      // 4. MATH & UTILITY HELPERS
+      // =======================================================================
+      const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+      const lerp = (a, b, t) => a + (b - a) * t;
+      const rand = (min, max) => Math.random() * (max - min) + min;
+      const randInt = (min, max) => Math.floor(rand(min, max + 1));
+      const distSq = (x1, y1, x2, y2) => {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        return dx * dx + dy * dy;
+      };
+
+      function swapPop(arr, index) {
+        const last = arr.length - 1;
+        if (index !== last) arr[index] = arr[last];
+        arr.pop();
+      }
+
+      function randomPointInArena(margin = 140) {
+        const maxR = Math.max(100, ARENA_RADIUS - margin);
+        const r = Math.sqrt(Math.random()) * maxR;
+        const a = Math.random() * Math.PI * 2;
+        return { x: Math.cos(a) * r, y: Math.sin(a) * r };
+      }
+
+      function createPolygonVertices(count, radius, jitter = 0.25) {
+        const verts = [];
+        for (let i = 0; i < count; i++) {
+          const a = (i / count) * Math.PI * 2;
+          const r = radius * (1 - jitter * 0.5 + Math.random() * jitter);
+          verts.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
+        }
+        return verts;
+      }
+
+      function getTierForScore(score) {
+        let info = TIERS[0];
+        for (let i = TIERS.length - 1; i >= 0; i--) {
+          if (score >= TIERS[i].minScore) {
+            info = TIERS[i];
+            break;
+          }
+        }
+        return info;
+      }
+
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function formatDuration(sec) {
+        const total = Math.max(0, Math.floor(sec));
+        const m = Math.floor(total / 60);
+        const s = total % 60;
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
+      }
+
+      // =======================================================================
+      // 5. ENTITY FACTORIES & RING-BUFFER COMET TRAILS
+      // =======================================================================
+      let nextEntityId = 1;
+
+      function createShip({ name, color, isPlayer, x, y }) {
+        const tierInfo = TIERS[0];
+        return {
+          id: nextEntityId++,
+          name,
+          color,
+          isPlayer: !!isPlayer,
+          x,
+          y,
+          vx: 0,
+          vy: 0,
+          angle: rand(0, Math.PI * 2),
+          radius: tierInfo.radius,
+          tetherRange: tierInfo.tetherRange,
+          slingMult: tierInfo.slingMult,
+          tier: 1,
+          score: 0,
+          kills: 0,
+          hp: tierInfo.maxHp,
+          maxHp: tierInfo.maxHp,
+          boost: 100,
+          maxBoost: 100,
+          isBoosting: false,
+          spawnShield: isPlayer ? 2.4 : 1.5,
+          hitFlash: 0,
+          alive: true,
+          tetherObj: null,
+          tetherOrbitDir: 1,
+          tetherHoldTime: 0,
+          ai: isPlayer ? null : {
+            targetX: x,
+            targetY: y,
+            decisionTimer: rand(0.1, 0.5),
+            dodgeCooldown: 0,
+            holdDuration: 0,
+            maxHoldDuration: rand(0.9, 1.8),
+            skill: rand(0.55, 0.96)
+          }
+        };
+      }
+
+      function createWorldObject(type, x, y) {
+        const pt = (x !== undefined && y !== undefined) ? { x, y } : randomPointInArena(180);
+        const trail = {
+          trailX: new Float32Array(MAX_TRAIL_PTS),
+          trailY: new Float32Array(MAX_TRAIL_PTS),
+          trailHead: 0,
+          trailCount: 0,
+          trailTimer: 0
+        };
+
+        if (type === 'orb') {
+          return {
+            id: nextEntityId++,
+            type: 'orb',
+            x: pt.x, y: pt.y,
+            vx: rand(-35, 35), vy: rand(-35, 35),
+            radius: 17,
+            mass: 1.0,
+            minTier: 1,
+            baseDamage: 36,
+            color: '#38bdf8',
+            rot: 0,
+            rotSpeed: rand(-2, 2),
+            ownerId: null,
+            ownerName: null,
+            ownerColor: null,
+            launchedTimer: 0,
+            tetheredBy: null,
+            ...trail
+          };
+        }
+
+        if (type === 'asteroid') {
+          const radius = rand(25, 33);
+          return {
+            id: nextEntityId++,
+            type: 'asteroid',
+            x: pt.x, y: pt.y,
+            vx: rand(-22, 22), vy: rand(-22, 22),
+            radius,
+            mass: 1.85,
+            minTier: 1,
+            baseDamage: 56,
+            color: '#94a3b8',
+            verts: createPolygonVertices(randInt(7, 9), radius, 0.26),
+            rot: rand(0, Math.PI * 2),
+            rotSpeed: rand(-1.1, 1.1),
+            ownerId: null,
+            ownerName: null,
+            ownerColor: null,
+            launchedTimer: 0,
+            tetheredBy: null,
+            ...trail
+          };
+        }
+
+        if (type === 'mega_asteroid') {
+          const radius = rand(42, 50);
+          return {
+            id: nextEntityId++,
+            type: 'mega_asteroid',
+            x: pt.x, y: pt.y,
+            vx: rand(-14, 14), vy: rand(-14, 14),
+            radius,
+            mass: 3.1,
+            minTier: 3,
+            baseDamage: 95,
+            color: '#818cf8',
+            verts: createPolygonVertices(randInt(9, 11), radius, 0.24),
+            rot: rand(0, Math.PI * 2),
+            rotSpeed: rand(-0.6, 0.6),
+            ownerId: null,
+            ownerName: null,
+            ownerColor: null,
+            launchedTimer: 0,
+            tetheredBy: null,
+            ...trail
+          };
+        }
+
+        // Volatile Explosive Core
+        return {
+          id: nextEntityId++,
+          type: 'volatile',
+          x: pt.x, y: pt.y,
+          vx: rand(-26, 26), vy: rand(-26, 26),
+          radius: 23,
+          mass: 1.4,
+          minTier: 1,
+          baseDamage: 74,
+          color: '#fb923c',
+          pulsePhase: rand(0, Math.PI * 2),
+          rot: 0,
+          rotSpeed: rand(-1.8, 1.8),
+          ownerId: null,
+          ownerName: null,
+          ownerColor: null,
+          launchedTimer: 0,
+          tetheredBy: null,
+          ...trail
+        };
+      }
+
+      // O(1) Ring-Buffer Push (Zero shifting, zero allocation)
+      function pushTrailPoint(obj, x, y) {
+        if (obj.trailCount < MAX_TRAIL_PTS) {
+          const idx = (obj.trailHead + obj.trailCount) % MAX_TRAIL_PTS;
+          obj.trailX[idx] = x;
+          obj.trailY[idx] = y;
+          obj.trailCount++;
+        } else {
+          obj.trailX[obj.trailHead] = x;
+          obj.trailY[obj.trailHead] = y;
+          obj.trailHead = (obj.trailHead + 1) % MAX_TRAIL_PTS;
+        }
+      }
+
+      function clearTrail(obj) {
+        obj.trailHead = 0;
+        obj.trailCount = 0;
+        obj.trailTimer = 0;
+      }
+
+      function createShard(x, y, value = 14, color = null) {
+        const pt = (x !== undefined && y !== undefined) ? { x, y } : randomPointInArena(90);
+        return {
+          x: pt.x,
+          y: pt.y,
+          vx: rand(-20, 20),
+          vy: rand(-20, 20),
+          value,
+          radius: value >= 30 ? 9 : (value >= 20 ? 7.5 : 5.5),
+          color: color || SHARD_COLORS[randInt(0, SHARD_COLORS.length - 1)],
+          phase: rand(0, Math.PI * 2)
+        };
+      }
+
+      // =======================================================================
+      // 6. GAME STATE & PRE-ALLOCATED OBJECT POOLS
+      // =======================================================================
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d', { alpha: false });
+      const minimapCanvas = document.getElementById('minimapCanvas');
+      const mctx = minimapCanvas.getContext('2d');
+
+      const particlePool = Array.from({ length: MAX_PARTICLES_HIGH }, () => ({
+        x: 0, y: 0, vx: 0, vy: 0, color: '#ffffff', size: 3, life: 0, maxLife: 1
+      }));
+      const shockwavePool = Array.from({ length: MAX_SHOCKWAVES }, () => ({
+        x: 0, y: 0, radius: 12, maxRadius: 100, color: '#ffffff', lineWidth: 4, life: 0, maxLife: 0.42
+      }));
+      const floatingTextPool = Array.from({ length: MAX_FLOATING_TEXTS }, () => ({
+        x: 0, y: 0, vy: -60, text: '', color: '#ffffff', size: 18, life: 0, maxLife: 1.15
+      }));
+
+      const state = {
+        mode: 'menu', // 'menu' | 'playing' | 'gameover'
+        quality: 'high', // 'high' | 'eco'
+        frameCount: 0,
+        fps: 60,
+        fpsFrames: 0,
+        fpsLastTime: performance.now(),
+        time: 0,
+        playStartTime: 0,
+        peakRank: 99,
+        selectedColorIdx: 0,
+        ships: [],
+        sortedShips: [],
+        objects: [],
+        shards: [],
+        particleCount: 0,
+        shockwaveCount: 0,
+        floatingTextCount: 0,
+        player: null,
+        leaderId: null,
+
+        // Camera
+        camX: 0,
+        camY: 0,
+        camZoom: 0.92,
+        shakeTime: 0,
+        shakeMag: 0,
+
+        // Input
+        mouseScreenX: window.innerWidth / 2,
+        mouseScreenY: window.innerHeight / 2,
+        mouseWorldX: 0,
+        mouseWorldY: 0,
+        lmbDown: false,
+        rmbDown: false,
+        spaceDown: false
+      };
+
+      // =======================================================================
+      // 7. POOLED VFX HELPERS
+      // =======================================================================
+      function addScreenShake(magnitude, duration = 0.22) {
+        if (magnitude > state.shakeMag || state.shakeTime <= 0) {
+          state.shakeMag = magnitude;
+          state.shakeTime = duration;
+        }
+      }
+
+      function spawnParticles(x, y, color, count = 12, speedMin = 60, speedMax = 260, sizeMin = 2, sizeMax = 5, life = 0.55) {
+        const cap = state.quality === 'eco' ? MAX_PARTICLES_ECO : MAX_PARTICLES_HIGH;
+        const actualCount = state.quality === 'eco' ? Math.max(2, Math.floor(count * 0.45)) : count;
+        for (let i = 0; i < actualCount; i++) {
+          if (state.particleCount >= cap) break;
+          const p = particlePool[state.particleCount++];
+          const a = Math.random() * Math.PI * 2;
+          const sp = rand(speedMin, speedMax);
+          p.x = x;
+          p.y = y;
+          p.vx = Math.cos(a) * sp;
+          p.vy = Math.sin(a) * sp;
+          p.color = color;
+          p.size = rand(sizeMin, sizeMax);
+          p.maxLife = life * 1.2;
+          p.life = rand(life * 0.6, p.maxLife);
+        }
+      }
+
+      function spawnShockwave(x, y, maxRadius, color, lineWidth = 4) {
+        if (state.shockwaveCount >= MAX_SHOCKWAVES) return;
+        const sw = shockwavePool[state.shockwaveCount++];
+        sw.x = x;
+        sw.y = y;
+        sw.radius = 12;
+        sw.maxRadius = maxRadius;
+        sw.color = color;
+        sw.lineWidth = lineWidth;
+        sw.life = 0.42;
+        sw.maxLife = 0.42;
+      }
+
+      function spawnFloatingText(x, y, text, color = '#ffffff', size = 18) {
+        if (state.floatingTextCount >= MAX_FLOATING_TEXTS) return;
+        const ft = floatingTextPool[state.floatingTextCount++];
+        ft.x = x;
+        ft.y = y;
+        ft.vy = -60;
+        ft.text = text;
+        ft.color = color;
+        ft.size = size;
+        ft.life = 1.15;
+        ft.maxLife = 1.15;
+      }
+
+      // =======================================================================
+      // 8. ARENA POPULATION & PROGRESSION
+      // =======================================================================
+      function pickBotName() {
+        const used = new Set(state.ships.map(s => s.name));
+        for (let i = 0; i < 12; i++) {
+          const candidate = BOT_NAMES[randInt(0, BOT_NAMES.length - 1)];
+          if (!used.has(candidate)) return candidate;
+        }
+        return `PILOT_${randInt(10, 99)}`;
+      }
+
+      function findSafeSpawnPoint(minClearance = 340) {
+        const clearSq = minClearance * minClearance;
+        for (let tries = 0; tries < 24; tries++) {
+          const pt = randomPointInArena(240);
+          let safe = true;
+          for (let i = 0; i < state.ships.length; i++) {
+            const s = state.ships[i];
+            if (s.alive && distSq(pt.x, pt.y, s.x, s.y) < clearSq) {
+              safe = false;
+              break;
+            }
+          }
+          if (safe) return pt;
+        }
+        return randomPointInArena(240);
+      }
+
+      function updateShipProgression(ship, silent = false) {
+        const prevTier = ship.tier;
+        const info = getTierForScore(ship.score);
+        ship.tier = info.tier;
+        ship.radius = info.radius;
+        ship.tetherRange = info.tetherRange;
+        ship.slingMult = info.slingMult;
+        if (info.maxHp > ship.maxHp) {
+          const diff = info.maxHp - ship.maxHp;
+          ship.maxHp = info.maxHp;
+          ship.hp = Math.min(ship.maxHp, ship.hp + diff + 18);
+        }
+        if (ship.tier > prevTier && !silent) {
+          spawnShockwave(ship.x, ship.y, ship.radius * 4.2, ship.color, 4);
+          spawnParticles(ship.x, ship.y, ship.color, 18, 80, 260, 2, 5, 0.6);
+          if (ship.isPlayer) {
+            sound.playTierUp();
+            const label = ship.tier === 3 ? 'TIER 3 — MEGA-ASTEROIDS UNLOCKED!' : `${info.label} REACHED!`;
+            spawnFloatingText(ship.x, ship.y - ship.radius - 26, label, '#38bdf8', 20);
+          }
+        }
+      }
+
+      function initArena() {
+        state.ships = [];
+        state.objects = [];
+        state.shards = [];
+        state.particleCount = 0;
+        state.shockwaveCount = 0;
+        state.floatingTextCount = 0;
+
+        for (let i = 0; i < TARGET_ORBS; i++) state.objects.push(createWorldObject('orb'));
+        for (let i = 0; i < TARGET_ASTEROIDS; i++) state.objects.push(createWorldObject('asteroid'));
+        for (let i = 0; i < TARGET_MEGA_ASTEROIDS; i++) state.objects.push(createWorldObject('mega_asteroid'));
+        for (let i = 0; i < TARGET_VOLATILES; i++) state.objects.push(createWorldObject('volatile'));
+        for (let i = 0; i < TARGET_SHARDS; i++) state.shards.push(createShard());
+
+        for (let i = 0; i < BOT_COUNT; i++) {
+          const pt = findSafeSpawnPoint(300);
+          const bot = createShip({
+            name: pickBotName(),
+            color: BOT_COLORS[i % BOT_COLORS.length],
+            isPlayer: false,
+            x: pt.x,
+            y: pt.y
+          });
+          bot.score = randInt(0, 750);
+          updateShipProgression(bot, true);
+          state.ships.push(bot);
+        }
+      }
+
+      function maintainWorldPopulation() {
+        // Maintain shards
+        if (state.shards.length < TARGET_SHARDS) {
+          state.shards.push(createShard());
+        }
+
+        // Maintain world objects (check every 15 frames)
+        if (state.frameCount % 15 === 0) {
+          let orbs = 0, ast = 0, mega = 0, vol = 0;
+          for (let i = 0; i < state.objects.length; i++) {
+            const t = state.objects[i].type;
+            if (t === 'orb') orbs++;
+            else if (t === 'asteroid') ast++;
+            else if (t === 'mega_asteroid') mega++;
+            else if (t === 'volatile') vol++;
+          }
+          if (orbs < TARGET_ORBS) state.objects.push(createWorldObject('orb'));
+          if (ast < TARGET_ASTEROIDS) state.objects.push(createWorldObject('asteroid'));
+          if (mega < TARGET_MEGA_ASTEROIDS) state.objects.push(createWorldObject('mega_asteroid'));
+          if (vol < TARGET_VOLATILES) state.objects.push(createWorldObject('volatile'));
+        }
+
+        // Maintain 18 live AI bots
+        let aliveBots = 0;
+        for (let i = 0; i < state.ships.length; i++) {
+          if (!state.ships[i].isPlayer && state.ships[i].alive) aliveBots++;
+        }
+        if (aliveBots < BOT_COUNT) {
+          const pt = findSafeSpawnPoint(360);
+          const bot = createShip({
+            name: pickBotName(),
+            color: BOT_COLORS[randInt(0, BOT_COLORS.length - 1)],
+            isPlayer: false,
+            x: pt.x,
+            y: pt.y
+          });
+          bot.score = randInt(0, 260);
+          updateShipProgression(bot, true);
+          state.ships.push(bot);
+        }
+      }
+
+      // =======================================================================
+      // 9. TETHER LASSO, DEFLECT & COMBAT MECHANICS
+      // =======================================================================
+      function attemptLatch(ship, aimX, aimY) {
+        if (ship.tetherObj || !ship.alive) return false;
+
+        let bestObj = null;
+        let bestMetric = Infinity;
+
+        for (let i = 0; i < state.objects.length; i++) {
+          const obj = state.objects[i];
+          if (obj.tetheredBy && obj.tetheredBy !== ship.id) continue;
+
+          const maxR = ship.tetherRange + obj.radius;
+          const dShipSq = distSq(ship.x, ship.y, obj.x, obj.y);
+          if (dShipSq > maxR * maxR) continue;
+
+          const dAimSq = distSq(aimX, aimY, obj.x, obj.y);
+          if (dAimSq >= 300 * 300) continue;
+
+          const dAim = Math.sqrt(dAimSq);
+          const dShip = Math.sqrt(dShipSq);
+          const isIncomingThreat = obj.launchedTimer > 0 && obj.ownerId && obj.ownerId !== ship.id;
+          const metric = dAim - (isIncomingThreat ? 105 : 0) + dShip * 0.22;
+
+          if (metric < bestMetric) {
+            bestMetric = metric;
+            bestObj = obj;
+          }
+        }
+
+        // Fallback: closest latchable object within range
+        if (!bestObj) {
+          let bestDistSq = Infinity;
+          for (let i = 0; i < state.objects.length; i++) {
+            const obj = state.objects[i];
+            if (obj.tetheredBy && obj.tetheredBy !== ship.id) continue;
+            const maxR = ship.tetherRange * 0.94 + obj.radius;
+            const dShipSq = distSq(ship.x, ship.y, obj.x, obj.y);
+            if (dShipSq <= maxR * maxR && dShipSq < bestDistSq) {
+              bestDistSq = dShipSq;
+              bestObj = obj;
+            }
+          }
+        }
+
+        if (!bestObj) return false;
+
+        // Check Tier 3+ requirement for Mega-Asteroids
+        if (bestObj.minTier > ship.tier) {
+          if (ship.isPlayer) {
+            spawnFloatingText(bestObj.x, bestObj.y - bestObj.radius - 14, 'TIER 3+ REQUIRED', '#a78bfa', 15);
+            sound.playHit(false);
+          }
+          return false;
+        }
+
+        // Catch & Deflect Bonus!
+        const isDeflect = bestObj.launchedTimer > 0 && bestObj.ownerId && bestObj.ownerId !== ship.id;
+        if (isDeflect) {
+          ship.score += 150;
+          updateShipProgression(ship);
+          spawnShockwave(bestObj.x, bestObj.y, 125, '#fbbf24', 5);
+          spawnParticles(bestObj.x, bestObj.y, '#fbbf24', 20, 90, 320, 2.5, 5.5, 0.55);
+          if (ship.isPlayer) {
+            sound.playDeflect();
+            addScreenShake(7, 0.18);
+            spawnFloatingText(bestObj.x, bestObj.y - 24, 'DEFLECT! +150', '#fbbf24', 22);
+          }
+        } else if (ship.isPlayer) {
+          sound.playLatch();
+        }
+
+        // Establish Magnetic Tether
+        ship.tetherObj = bestObj;
+        ship.tetherHoldTime = 0;
+        bestObj.tetheredBy = ship.id;
+        bestObj.ownerId = ship.id;
+        bestObj.ownerName = ship.name;
+        bestObj.ownerColor = ship.color;
+        bestObj.launchedTimer = 0;
+        clearTrail(bestObj);
+
+        // Determine natural orbit direction via cross product
+        const rx = bestObj.x - ship.x;
+        const ry = bestObj.y - ship.y;
+        const rvx = bestObj.vx - ship.vx;
+        const rvy = bestObj.vy - ship.vy;
+        const cross = rx * rvy - ry * rvx;
+        ship.tetherOrbitDir = cross >= 0 ? 1 : -1;
+
+        if (ship.isPlayer) {
+          sound.startTetherHum();
+        }
+        return true;
+      }
+
+      function releaseTether(ship, sling = true) {
+        const obj = ship.tetherObj;
+        if (!obj) return;
+        ship.tetherObj = null;
+        obj.tetheredBy = null;
+        if (ship.isPlayer) sound.stopTetherHum();
+
+        if (!sling) return;
+
+        // Calculate slingshot launch velocity
+        let vx = obj.vx * ship.slingMult;
+        let vy = obj.vy * ship.slingMult;
+        let speed = Math.sqrt(vx * vx + vy * vy);
+
+        // Ensure crisp tangent launch even on quick tap-releases
+        const minLaunch = 620 / Math.sqrt(obj.mass);
+        const maxLaunch = 1320 / Math.pow(obj.mass, 0.35);
+
+        if (speed < minLaunch) {
+          const rx = obj.x - ship.x;
+          const ry = obj.y - ship.y;
+          const rLen = Math.sqrt(rx * rx + ry * ry) || 1;
+          const tx = (-ry / rLen) * ship.tetherOrbitDir;
+          const ty = (rx / rLen) * ship.tetherOrbitDir;
+          vx = tx * minLaunch + ship.vx * 0.45;
+          vy = ty * minLaunch + ship.vy * 0.45;
+          speed = Math.sqrt(vx * vx + vy * vy);
+        }
+
+        if (speed > maxLaunch) {
+          const s = maxLaunch / speed;
+          vx *= s;
+          vy *= s;
+          speed = maxLaunch;
+        }
+
+        obj.vx = vx;
+        obj.vy = vy;
+        obj.ownerId = ship.id;
+        obj.ownerName = ship.name;
+        obj.ownerColor = ship.color;
+        obj.launchedTimer = 2.6;
+        clearTrail(obj);
+        pushTrailPoint(obj, obj.x, obj.y);
+
+        spawnParticles(obj.x, obj.y, ship.color, 14, 80, 260, 2, 4.5, 0.42);
+        if (ship.isPlayer) {
+          sound.playSling(speed / 700);
+          addScreenShake(4.5, 0.12);
+        }
+      }
+
+      function explodeVolatile(obj, attacker) {
+        const blastRadius = 250;
+        spawnShockwave(obj.x, obj.y, blastRadius, '#fb923c', 7);
+        spawnShockwave(obj.x, obj.y, blastRadius * 0.62, '#fef08a', 4);
+        spawnParticles(obj.x, obj.y, '#fb923c', 28, 120, 480, 3, 6.5, 0.65);
+        spawnParticles(obj.x, obj.y, '#fef08a', 14, 60, 260, 2, 4.5, 0.45);
+
+        // Audio & shake if near camera
+        if (distSq(obj.x, obj.y, state.camX, state.camY) < 1100 * 1100) {
+          sound.playExplosion(0.22);
+          addScreenShake(12, 0.28);
+        }
+
+        // AoE Damage to ships
+        for (let i = 0; i < state.ships.length; i++) {
+          const s = state.ships[i];
+          if (!s.alive || s.spawnShield > 0) continue;
+          const maxR = blastRadius + s.radius;
+          const d2 = distSq(obj.x, obj.y, s.x, s.y);
+          if (d2 < maxR * maxR) {
+            const d = Math.sqrt(d2) || 1;
+            const falloff = 1 - clamp(d / maxR, 0, 0.72);
+            const selfMult = (attacker && s.id === attacker.id) ? 0.35 : 1.0;
+            const dmg = 90 * falloff * selfMult;
+            const nx = (s.x - obj.x) / d;
+            const ny = (s.y - obj.y) / d;
+            s.vx += nx * 520 * falloff;
+            s.vy += ny * 520 * falloff;
+            damageShip(s, dmg, attacker, 'Volatile Core');
+          }
+        }
+
+        // Knockback nearby objects
+        const objBlastR = blastRadius * 1.15;
+        const objBlastRSq = objBlastR * objBlastR;
+        for (let i = 0; i < state.objects.length; i++) {
+          const other = state.objects[i];
+          if (other.id === obj.id) continue;
+          const d2 = distSq(obj.x, obj.y, other.x, other.y);
+          if (d2 < objBlastRSq) {
+            const d = Math.sqrt(d2) || 1;
+            const nx = (other.x - obj.x) / d;
+            const ny = (other.y - obj.y) / d;
+            const push = (1 - d / objBlastR) * 440 / other.mass;
+            other.vx += nx * push;
+            other.vy += ny * push;
+          }
+        }
+
+        if (obj.tetheredBy) {
+          const holder = state.ships.find(s => s.id === obj.tetheredBy);
+          if (holder) releaseTether(holder, false);
+        }
+        const idx = state.objects.indexOf(obj);
+        if (idx !== -1) swapPop(state.objects, idx);
+      }
+
+      function damageShip(victim, amount, attacker, causeLabel = 'Impact') {
+        if (!victim.alive || victim.spawnShield > 0) return;
+
+        victim.hp -= amount;
+        victim.hitFlash = 0.14;
+        spawnParticles(victim.x, victim.y, '#ffffff', 8, 70, 220, 2, 4, 0.32);
+
+        if (victim.isPlayer) {
+          sound.playHit(amount >= 50);
+          addScreenShake(Math.min(11, amount * 0.14), 0.18);
+        } else if (attacker && attacker.isPlayer) {
+          sound.playHit(amount >= 50);
+        }
+
+        if (victim.hp <= 0) {
+          eliminateShip(victim, attacker, causeLabel);
+        }
+      }
+
+      function eliminateShip(victim, killer, causeLabel) {
+        if (!victim.alive) return;
+        victim.alive = false;
+        if (victim.tetherObj) releaseTether(victim, false);
+
+        spawnShockwave(victim.x, victim.y, victim.radius * 5.2, victim.color, 6);
+        spawnParticles(victim.x, victim.y, victim.color, 26, 90, 380, 2.5, 6, 0.65);
+
+        // Drop energy shards based on victim's score
+        const dropCount = clamp(Math.floor(5 + victim.score / 110), 6, 18);
+        for (let i = 0; i < dropCount; i++) {
+          const a = Math.random() * Math.PI * 2;
+          const sp = rand(60, 240);
+          const sh = createShard(victim.x, victim.y, 26, victim.color);
+          sh.vx = Math.cos(a) * sp;
+          sh.vy = Math.sin(a) * sp;
+          state.shards.push(sh);
+        }
+
+        if (distSq(victim.x, victim.y, state.camX, state.camY) < 1000 * 1000) {
+          sound.playExplosion(0.16);
+        }
+
+        if (killer && killer.alive && killer.id !== victim.id) {
+          killer.kills++;
+          const bounty = Math.round(160 + victim.score * 0.25);
+          killer.score += bounty;
+          killer.hp = Math.min(killer.maxHp, killer.hp + 25);
+          updateShipProgression(killer);
+          if (killer.isPlayer) {
+            addScreenShake(8, 0.2);
+            spawnFloatingText(victim.x, victim.y - 18, `ELIMINATED ${victim.name}! +${bounty}`, '#34d399', 20);
+          }
+        }
+
+        if (victim.isPlayer) {
+          state.mode = 'gameover';
+          const killerName = (killer && killer.id !== victim.id) ? killer.name : causeLabel;
+          showGameOverScreen(killerName);
+        } else {
+          const idx = state.ships.indexOf(victim);
+          if (idx !== -1) swapPop(state.ships, idx);
+        }
+      }
+
+      // =======================================================================
+      // 10. AI BOT CONTROLLER (Staggered Scans + Squared-Distance Math)
+      // =======================================================================
+      function updateBotAI(bot, dt) {
+        const ai = bot.ai;
+        ai.decisionTimer -= dt;
+        ai.dodgeCooldown = Math.max(0, ai.dodgeCooldown - dt);
+        if (bot.tetherObj) ai.holdDuration += dt;
+
+        // Stagger heavy scans across 5 frames per bot
+        if ((state.frameCount + bot.id) % 5 !== 0) return;
+
+        // 1. Detect incoming hostile projectiles
+        let dangerObj = null;
+        let minDangerDistSq = 320 * 320;
+        for (let i = 0; i < state.objects.length; i++) {
+          const obj = state.objects[i];
+          if (obj.launchedTimer > 0 && obj.ownerId && obj.ownerId !== bot.id) {
+            const d2 = distSq(bot.x, bot.y, obj.x, obj.y);
+            if (d2 < minDangerDistSq) {
+              const toBotX = bot.x - obj.x;
+              const toBotY = bot.y - obj.y;
+              if (toBotX * obj.vx + toBotY * obj.vy > 0) {
+                minDangerDistSq = d2;
+                dangerObj = obj;
+              }
+            }
+          }
+        }
+
+        if (dangerObj) {
+          const deflectR = bot.tetherRange * 0.85;
+          if (!bot.tetherObj && minDangerDistSq < deflectR * deflectR && Math.random() < 0.28 * ai.skill) {
+            attemptLatch(bot, dangerObj.x, dangerObj.y);
+          } else {
+            const vLen = Math.sqrt(dangerObj.vx * dangerObj.vx + dangerObj.vy * dangerObj.vy) || 1;
+            const perpX = -dangerObj.vy / vLen;
+            const perpY = dangerObj.vx / vLen;
+            ai.targetX = bot.x + perpX * 260;
+            ai.targetY = bot.y + perpY * 260;
+            if (bot.boost > 35 && ai.dodgeCooldown <= 0) {
+              bot.isBoosting = true;
+              ai.dodgeCooldown = 1.4;
+            }
+            return;
+          }
+        }
+
+        bot.isBoosting = false;
+
+        // 2. Find nearest enemy ship
+        let nearestEnemy = null;
+        let enemyDistSq = 740 * 740;
+        for (let i = 0; i < state.ships.length; i++) {
+          const other = state.ships[i];
+          if (!other.alive || other.id === bot.id) continue;
+          const d2 = distSq(bot.x, bot.y, other.x, other.y);
+          if (d2 < enemyDistSq) {
+            enemyDistSq = d2;
+            nearestEnemy = other;
+          }
+        }
+
+        // 3. If holding a tethered object, whip and sling at enemy
+        if (bot.tetherObj) {
+          const obj = bot.tetherObj;
+          if (nearestEnemy) {
+            const angleToEnemy = Math.atan2(nearestEnemy.y - bot.y, nearestEnemy.x - bot.x);
+            const weave = angleToEnemy + (Math.sin(state.time * 4 + bot.id) > 0 ? 0.9 : -0.9);
+            ai.targetX = bot.x + Math.cos(weave) * 280;
+            ai.targetY = bot.y + Math.sin(weave) * 280;
+
+            if (ai.holdDuration > 0.36) {
+              const spSq = obj.vx * obj.vx + obj.vy * obj.vy;
+              if (spSq > 230 * 230) {
+                const sp = Math.sqrt(spSq);
+                const toEx = nearestEnemy.x - obj.x;
+                const toEy = nearestEnemy.y - obj.y;
+                const toELen = Math.sqrt(toEx * toEx + toEy * toEy) || 1;
+                const align = (obj.vx * toEx + obj.vy * toEy) / (sp * toELen);
+                if (align > 0.87 - (1 - ai.skill) * 0.12) {
+                  releaseTether(bot, true);
+                  ai.holdDuration = 0;
+                  return;
+                }
+              }
+            }
+          }
+
+          if (ai.holdDuration >= ai.maxHoldDuration) {
+            releaseTether(bot, true);
+            ai.holdDuration = 0;
+          }
+          return;
+        }
+
+        // 4. Seek ammo if enemy is nearby
+        if (nearestEnemy && enemyDistSq < 640 * 640) {
+          let bestAmmo = null;
+          let bestAmmoDistSq = (bot.tetherRange * 1.15) ** 2;
+          for (let i = 0; i < state.objects.length; i++) {
+            const obj = state.objects[i];
+            if (obj.tetheredBy || obj.minTier > bot.tier) continue;
+            const d2 = distSq(bot.x, bot.y, obj.x, obj.y);
+            if (d2 < bestAmmoDistSq) {
+              bestAmmoDistSq = d2;
+              bestAmmo = obj;
+            }
+          }
+          if (bestAmmo) {
+            const latchR = bot.tetherRange * 0.92;
+            if (bestAmmoDistSq < latchR * latchR) {
+              if (attemptLatch(bot, bestAmmo.x, bestAmmo.y)) {
+                ai.holdDuration = 0;
+                ai.maxHoldDuration = rand(0.95, 1.85);
+                return;
+              }
+            } else {
+              ai.targetX = bestAmmo.x;
+              ai.targetY = bestAmmo.y;
+              return;
+            }
+          }
+        }
+
+        // 5. Roam & collect shards
+        if (ai.decisionTimer <= 0) {
+          ai.decisionTimer = rand(0.35, 0.85);
+          let bestShard = null;
+          let bestShardDistSq = 440 * 440;
+          for (let i = 0; i < state.shards.length; i += 3) {
+            const sh = state.shards[i];
+            const d2 = distSq(bot.x, bot.y, sh.x, sh.y);
+            if (d2 < bestShardDistSq) {
+              bestShardDistSq = d2;
+              bestShard = sh;
+            }
+          }
+          if (bestShard) {
+            ai.targetX = bestShard.x;
+            ai.targetY = bestShard.y;
+          } else {
+            const pt = randomPointInArena(320);
+            ai.targetX = lerp(bot.x, pt.x, 0.45);
+            ai.targetY = lerp(bot.y, pt.y, 0.45);
+          }
+        }
+      }
+
+      // =======================================================================
+      // 11. MAIN PHYSICS & SIMULATION LOOP
+      // =======================================================================
+      function updateSimulation(dt) {
+        state.time += dt;
+        state.frameCount++;
+        maintainWorldPopulation();
+
+        // Update mouse world position
+        const W = window.innerWidth;
+        const H = window.innerHeight;
+        state.mouseWorldX = state.camX + (state.mouseScreenX - W * 0.5) / state.camZoom;
+        state.mouseWorldY = state.camY + (state.mouseScreenY - H * 0.5) / state.camZoom;
+
+        if (state.shakeTime > 0) {
+          state.shakeTime = Math.max(0, state.shakeTime - dt);
+        }
+
+        // --- UPDATE SHIPS ---
+        for (let i = 0; i < state.ships.length; i++) {
+          const ship = state.ships[i];
+          if (!ship.alive) continue;
+
+          if (ship.spawnShield > 0) ship.spawnShield = Math.max(0, ship.spawnShield - dt);
+          if (ship.hitFlash > 0) ship.hitFlash = Math.max(0, ship.hitFlash - dt);
+
+          // Passive slow hull regeneration
+          if (ship.hp < ship.maxHp) {
+            ship.hp = Math.min(ship.maxHp, ship.hp + 2.2 * dt);
+          }
+
+          let targetX = ship.x;
+          let targetY = ship.y;
+
+          if (ship.isPlayer) {
+            targetX = state.mouseWorldX;
+            targetY = state.mouseWorldY;
+            const wantBoost = (state.spaceDown || state.rmbDown) && ship.boost > 6;
+            if (wantBoost && !ship.isBoosting) sound.playBoost();
+            ship.isBoosting = wantBoost;
+
+            // Continuous latch attempt while holding LMB
+            if (state.lmbDown && !ship.tetherObj) {
+              attemptLatch(ship, state.mouseWorldX, state.mouseWorldY);
+            }
+          } else {
+            updateBotAI(ship, dt);
+            targetX = ship.ai.targetX;
+            targetY = ship.ai.targetY;
+          }
+
+          // Smooth steering toward target
+          const dx = targetX - ship.x;
+          const dy = targetY - ship.y;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d > 4) {
+            const desiredAngle = Math.atan2(dy, dx);
+            let diff = desiredAngle - ship.angle;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            ship.angle += diff * clamp(11 * dt, 0, 1);
+          }
+
+          const baseSpeed = 355 - (ship.tier - 1) * 10;
+          const speedMult = ship.isBoosting ? 1.62 : 1.0;
+          const throttle = clamp(d / 120, 0, 1);
+          const accel = 1180 * speedMult;
+
+          if (d > 6) {
+            ship.vx += (dx / d) * accel * throttle * dt;
+            ship.vy += (dy / d) * accel * throttle * dt;
+          }
+
+          // Drag & speed cap
+          const shipDrag = Math.pow(0.055, dt);
+          ship.vx *= shipDrag;
+          ship.vy *= shipDrag;
+
+          const maxSp = baseSpeed * speedMult;
+          const curSpSq = ship.vx * ship.vx + ship.vy * ship.vy;
+          if (curSpSq > maxSp * maxSp) {
+            const curSp = Math.sqrt(curSpSq);
+            ship.vx = (ship.vx / curSp) * maxSp;
+            ship.vy = (ship.vy / curSp) * maxSp;
+          }
+
+          ship.x += ship.vx * dt;
+          ship.y += ship.vy * dt;
+
+          // Circular arena boundary containment for ships
+          const maxShipR = ARENA_RADIUS - ship.radius - 6;
+          const rSq = ship.x * ship.x + ship.y * ship.y;
+          if (rSq > maxShipR * maxShipR) {
+            const r = Math.sqrt(rSq) || 1;
+            const nx = ship.x / r;
+            const ny = ship.y / r;
+            ship.x = nx * maxShipR;
+            ship.y = ny * maxShipR;
+            const outVel = ship.vx * nx + ship.vy * ny;
+            if (outVel > 0) {
+              ship.vx -= nx * outVel * 1.35;
+              ship.vy -= ny * outVel * 1.35;
+            }
+          }
+
+          // Boost energy drain / recharge + pooled exhaust
+          if (ship.isBoosting && ship.boost > 0) {
+            ship.boost = Math.max(0, ship.boost - 48 * dt);
+            if (ship.boost <= 0) ship.isBoosting = false;
+            if (Math.random() < (state.quality === 'eco' ? 0.25 : 0.55)) {
+              const cap = state.quality === 'eco' ? MAX_PARTICLES_ECO : MAX_PARTICLES_HIGH;
+              if (state.particleCount < cap) {
+                const p = particlePool[state.particleCount++];
+                p.x = ship.x - Math.cos(ship.angle) * ship.radius + rand(-4, 4);
+                p.y = ship.y - Math.sin(ship.angle) * ship.radius + rand(-4, 4);
+                p.vx = -Math.cos(ship.angle) * rand(90, 190) + ship.vx * 0.2;
+                p.vy = -Math.sin(ship.angle) * rand(90, 190) + ship.vy * 0.2;
+                p.color = ship.color;
+                p.size = rand(2.5, 4.5);
+                p.life = 0.24;
+                p.maxLife = 0.24;
+              }
+            }
+          } else {
+            ship.boost = Math.min(ship.maxBoost, ship.boost + 24 * dt);
+          }
+
+          // --- MAGNETIC TETHER ORBIT PHYSICS ---
+          if (ship.tetherObj) {
+            const obj = ship.tetherObj;
+            ship.tetherHoldTime += dt;
+            const rx = obj.x - ship.x;
+            const ry = obj.y - ship.y;
+            const dist = Math.sqrt(rx * rx + ry * ry) || 1;
+
+            // Break tether if dragged way too far
+            if (dist > ship.tetherRange * 1.55) {
+              releaseTether(ship, false);
+            } else {
+              const nx = rx / dist;
+              const ny = ry / dist;
+              const tx = -ny * ship.tetherOrbitDir;
+              const ty = nx * ship.tetherOrbitDir;
+
+              const idealDist = clamp(ship.radius + obj.radius + 78, 115, ship.tetherRange * 0.62);
+              const springK = 22 / Math.sqrt(obj.mass);
+              const radialForce = (idealDist - dist) * springK;
+
+              // Tangential whip acceleration
+              const whipSpeed = (540 + Math.min(ship.tetherHoldTime, 1.4) * 210) / Math.pow(obj.mass, 0.32);
+              const curTanVel = (obj.vx - ship.vx) * tx + (obj.vy - ship.vy) * ty;
+              const tanForce = (whipSpeed - curTanVel) * 4.8;
+
+              obj.vx += (nx * radialForce + tx * tanForce) * dt;
+              obj.vy += (ny * radialForce + ty * tanForce) * dt;
+
+              // Radial damping to prevent wild bouncing
+              const relRadVel = (obj.vx - ship.vx) * nx + (obj.vy - ship.vy) * ny;
+              obj.vx -= nx * relRadVel * clamp(6.5 * dt, 0, 0.8);
+              obj.vy -= ny * relRadVel * clamp(6.5 * dt, 0, 0.8);
+
+              // Subtle kinetic pull on ship for tactile weight
+              const pullBack = 0.08 * obj.mass;
+              ship.vx -= nx * radialForce * pullBack * dt;
+              ship.vy -= ny * radialForce * pullBack * dt;
+
+              if (ship.isPlayer) {
+                const sp = Math.sqrt(obj.vx * obj.vx + obj.vy * obj.vy);
+                sound.updateTetherHum(sp / 650);
+              }
+            }
+          }
+        }
+
+        // --- SHIP vs SHIP SOFT COLLISION ---
+        for (let i = 0; i < state.ships.length; i++) {
+          const a = state.ships[i];
+          if (!a.alive) continue;
+          for (let j = i + 1; j < state.ships.length; j++) {
+            const b = state.ships[j];
+            if (!b.alive) continue;
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const minD = a.radius + b.radius;
+            const d2 = dx * dx + dy * dy;
+            if (d2 > 0 && d2 < minD * minD) {
+              const d = Math.sqrt(d2);
+              const nx = dx / d;
+              const ny = dy / d;
+              const overlap = (minD - d) * 0.5;
+              a.x -= nx * overlap;
+              a.y -= ny * overlap;
+              b.x += nx * overlap;
+              b.y += ny * overlap;
+              a.vx -= nx * 95;
+              a.vy -= ny * 95;
+              b.vx += nx * 95;
+              b.vy += ny * 95;
+            }
+          }
+        }
+
+        // --- UPDATE WORLD OBJECTS ---
+        for (let i = state.objects.length - 1; i >= 0; i--) {
+          const obj = state.objects[i];
+          if (!obj) continue;
+          obj.rot += obj.rotSpeed * dt;
+          if (obj.type === 'volatile') obj.pulsePhase += dt * 5.2;
+
+          if (!obj.tetheredBy) {
+            const drag = obj.launchedTimer > 0 ? 0.65 : 0.36;
+            const f = Math.pow(drag, dt);
+            obj.vx *= f;
+            obj.vy *= f;
+          }
+
+          obj.x += obj.vx * dt;
+          obj.y += obj.vy * dt;
+
+          // Circular arena wall reflection for objects
+          const maxObjR = ARENA_RADIUS - obj.radius - 6;
+          const rSq = obj.x * obj.x + obj.y * obj.y;
+          if (rSq > maxObjR * maxObjR) {
+            const r = Math.sqrt(rSq) || 1;
+            const nx = obj.x / r;
+            const ny = obj.y / r;
+            obj.x = nx * maxObjR;
+            obj.y = ny * maxObjR;
+            const dot = obj.vx * nx + obj.vy * ny;
+            if (dot > 0) {
+              obj.vx -= 1.85 * dot * nx;
+              obj.vy -= 1.85 * dot * ny;
+            }
+          }
+
+          // Launched projectile state & ring-buffer comet trail
+          const objSpeedSq = obj.vx * obj.vx + obj.vy * obj.vy;
+          if (obj.launchedTimer > 0) {
+            obj.launchedTimer -= dt;
+            if (objSpeedSq < 190 * 190 || obj.launchedTimer <= 0) {
+              obj.launchedTimer = 0;
+              obj.ownerId = null;
+              obj.ownerColor = null;
+            } else {
+              obj.trailTimer += dt;
+              if (obj.trailTimer >= 0.02) {
+                obj.trailTimer = 0;
+                pushTrailPoint(obj, obj.x, obj.y);
+              }
+            }
+          } else if (obj.trailCount > 0) {
+            obj.trailHead = (obj.trailHead + 1) % MAX_TRAIL_PTS;
+            obj.trailCount--;
+          }
+
+          // Object vs Ship collisions
+          let destroyed = false;
+          for (let sIdx = 0; sIdx < state.ships.length; sIdx++) {
+            const ship = state.ships[sIdx];
+            if (!ship || !ship.alive || obj.tetheredBy === ship.id) continue;
+
+            const dx = ship.x - obj.x;
+            const dy = ship.y - obj.y;
+            const minD = ship.radius + obj.radius;
+            const d2 = dx * dx + dy * dy;
+
+            if (d2 < minD * minD) {
+              const d = Math.sqrt(d2) || 1;
+              const nx = dx / d;
+              const ny = dy / d;
+              const overlap = minD - d;
+
+              ship.x += nx * overlap * 0.7;
+              ship.y += ny * overlap * 0.7;
+              obj.x -= nx * overlap * 0.3;
+              obj.y -= ny * overlap * 0.3;
+
+              const isHostile = obj.ownerId && obj.ownerId !== ship.id && (obj.launchedTimer > 0 || obj.tetheredBy);
+              if (isHostile && objSpeedSq > 235 * 235) {
+                const objSpeed = Math.sqrt(objSpeedSq);
+                const attacker = state.ships.find(s => s.id === obj.ownerId) || null;
+
+                if (obj.type === 'volatile') {
+                  explodeVolatile(obj, attacker);
+                  destroyed = true;
+                  break;
+                }
+
+                const speedFactor = clamp(objSpeed / 640, 0.55, 2.05);
+                const damage = obj.baseDamage * speedFactor;
+
+                ship.vx += nx * Math.min(objSpeed * 0.7, 560);
+                ship.vy += ny * Math.min(objSpeed * 0.7, 560);
+                obj.vx *= -0.45;
+                obj.vy *= -0.45;
+                obj.launchedTimer = 0;
+
+                damageShip(ship, damage, attacker, obj.type === 'mega_asteroid' ? 'Mega-Asteroid' : 'Slingshot');
+              } else {
+                const push = 135;
+                ship.vx += nx * push;
+                ship.vy += ny * push;
+                obj.vx -= nx * (push / obj.mass);
+                obj.vy -= ny * (push / obj.mass);
+              }
+            }
+          }
+          if (destroyed) continue;
+        }
+
+        // --- OBJECT vs OBJECT ELASTIC COLLISIONS ---
+        for (let i = 0; i < state.objects.length; i++) {
+          const a = state.objects[i];
+          if (!a) continue;
+          for (let j = i + 1; j < state.objects.length; j++) {
+            const b = state.objects[j];
+            if (!b) continue;
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const minD = a.radius + b.radius;
+            const d2 = dx * dx + dy * dy;
+            if (d2 > 0 && d2 < minD * minD) {
+              const d = Math.sqrt(d2);
+              const nx = dx / d;
+              const ny = dy / d;
+              const overlap = minD - d;
+              const totalMass = a.mass + b.mass;
+              a.x -= nx * overlap * (b.mass / totalMass);
+              a.y -= ny * overlap * (b.mass / totalMass);
+              b.x += nx * overlap * (a.mass / totalMass);
+              b.y += ny * overlap * (a.mass / totalMass);
+
+              const rvx = b.vx - a.vx;
+              const rvy = b.vy - a.vy;
+              const velAlongNormal = rvx * nx + rvy * ny;
+              if (velAlongNormal < 0) {
+                const restitution = 0.82;
+                const jImp = -(1 + restitution) * velAlongNormal / (1 / a.mass + 1 / b.mass);
+                a.vx -= (jImp / a.mass) * nx;
+                a.vy -= (jImp / a.mass) * ny;
+                b.vx += (jImp / b.mass) * nx;
+                b.vy += (jImp / b.mass) * ny;
+
+                if (Math.abs(velAlongNormal) > 470) {
+                  if (a.type === 'volatile' && a.launchedTimer > 0) {
+                    const att = state.ships.find(s => s.id === a.ownerId) || null;
+                    explodeVolatile(a, att);
+                    i--;
+                    break;
+                  } else if (b.type === 'volatile' && b.launchedTimer > 0) {
+                    const att = state.ships.find(s => s.id === b.ownerId) || null;
+                    explodeVolatile(b, att);
+                    j--;
+                    continue;
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // --- UPDATE SHARDS & MAGNETIC PICKUPS ---
+        const shardDrag = Math.pow(0.12, dt);
+        const maxShardR = ARENA_RADIUS - 40;
+        const maxShardRSq = maxShardR * maxShardR;
+        for (let i = state.shards.length - 1; i >= 0; i--) {
+          const sh = state.shards[i];
+          sh.phase += dt * 4.2;
+          sh.vx *= shardDrag;
+          sh.vy *= shardDrag;
+          sh.x += sh.vx * dt;
+          sh.y += sh.vy * dt;
+
+          const srSq = sh.x * sh.x + sh.y * sh.y;
+          if (srSq > maxShardRSq) {
+            const sr = Math.sqrt(srSq) || 1;
+            sh.x = (sh.x / sr) * maxShardR;
+            sh.y = (sh.y / sr) * maxShardR;
+          }
+
+          for (let sIdx = 0; sIdx < state.ships.length; sIdx++) {
+            const ship = state.ships[sIdx];
+            if (!ship.alive) continue;
+            const d2 = distSq(ship.x, ship.y, sh.x, sh.y);
+            const magnetR = ship.radius + 56;
+            if (d2 < magnetR * magnetR) {
+              const pickupR = ship.radius + sh.radius + 5;
+              if (d2 < pickupR * pickupR) {
+                ship.score += sh.value;
+                updateShipProgression(ship);
+                if (ship.isPlayer) sound.playShard();
+                spawnParticles(sh.x, sh.y, sh.color, 4, 35, 110, 1.5, 3, 0.25);
+                swapPop(state.shards, i);
+                break;
+              } else {
+                const d = Math.sqrt(d2) || 1;
+                const pull = 380 * dt;
+                sh.x += ((ship.x - sh.x) / d) * pull;
+                sh.y += ((ship.y - sh.y) / d) * pull;
+              }
+            }
+          }
+        }
+
+        // --- UPDATE POOLED PARTICLES, SHOCKWAVES & FLOATING TEXT ---
+        const pDrag = Math.pow(0.2, dt);
+        for (let i = state.particleCount - 1; i >= 0; i--) {
+          const p = particlePool[i];
+          p.life -= dt;
+          if (p.life <= 0) {
+            state.particleCount--;
+            if (i !== state.particleCount) {
+              const last = particlePool[state.particleCount];
+              particlePool[state.particleCount] = p;
+              particlePool[i] = last;
+            }
+            continue;
+          }
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.vx *= pDrag;
+          p.vy *= pDrag;
+        }
+
+        for (let i = state.shockwaveCount - 1; i >= 0; i--) {
+          const sw = shockwavePool[i];
+          sw.life -= dt;
+          if (sw.life <= 0) {
+            state.shockwaveCount--;
+            if (i !== state.shockwaveCount) {
+              const last = shockwavePool[state.shockwaveCount];
+              shockwavePool[state.shockwaveCount] = sw;
+              shockwavePool[i] = last;
+            }
+            continue;
+          }
+          const t = 1 - sw.life / sw.maxLife;
+          sw.radius = lerp(14, sw.maxRadius, 1 - Math.pow(1 - t, 3));
+        }
+
+        const ftDrag = Math.pow(0.25, dt);
+        for (let i = state.floatingTextCount - 1; i >= 0; i--) {
+          const ft = floatingTextPool[i];
+          ft.life -= dt;
+          if (ft.life <= 0) {
+            state.floatingTextCount--;
+            if (i !== state.floatingTextCount) {
+              const last = floatingTextPool[state.floatingTextCount];
+              floatingTextPool[state.floatingTextCount] = ft;
+              floatingTextPool[i] = last;
+            }
+            continue;
+          }
+          ft.y += ft.vy * dt;
+          ft.vy *= ftDrag;
+        }
+
+        // --- LEADERBOARD & CAMERA TRACKING ---
+        const sorted = state.sortedShips;
+        sorted.length = 0;
+        for (let i = 0; i < state.ships.length; i++) {
+          if (state.ships[i].alive) sorted.push(state.ships[i]);
+        }
+        sorted.sort((a, b) => b.score - a.score);
+        state.leaderId = sorted.length > 0 ? sorted[0].id : null;
+
+        if (state.mode === 'playing' && state.player && state.player.alive) {
+          const p = state.player;
+          const rank = sorted.indexOf(p) + 1;
+          if (rank > 0 && rank < state.peakRank) state.peakRank = rank;
+
+          const targetZoom = clamp(0.95 - (p.tier - 1) * 0.045, 0.72, 0.96);
+          state.camX = lerp(state.camX, p.x + p.vx * 0.12, clamp(7.5 * dt, 0, 1));
+          state.camY = lerp(state.camY, p.y + p.vy * 0.12, clamp(7.5 * dt, 0, 1));
+          state.camZoom = lerp(state.camZoom, targetZoom, clamp(3.5 * dt, 0, 1));
+          updateHUD(sorted);
+        } else {
+          // Live animated background camera smoothly orbits or tracks #1 leader
+          const leader = sorted[0];
+          const targetX = leader ? leader.x : Math.cos(state.time * 0.2) * 450;
+          const targetY = leader ? leader.y : Math.sin(state.time * 0.2) * 450;
+          state.camX = lerp(state.camX, targetX, clamp(2.2 * dt, 0, 1));
+          state.camY = lerp(state.camY, targetY, clamp(2.2 * dt, 0, 1));
+          state.camZoom = lerp(state.camZoom, 0.82, clamp(2.0 * dt, 0, 1));
+        }
+      }
+
+      // =======================================================================
+      // 12. RENDERING (Zero shadowBlur + Sprite Cache + Frustum Culling)
+      // =======================================================================
+      function resizeCanvas() {
+        const maxDpr = state.quality === 'eco' ? 1 : 1.5;
+        const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
+        canvas.width = Math.floor(window.innerWidth * dpr);
+        canvas.height = Math.floor(window.innerHeight * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      function render() {
+        const W = window.innerWidth;
+        const H = window.innerHeight;
+
+        ctx.fillStyle = '#070b14';
+        ctx.fillRect(0, 0, W, H);
+
+        ctx.save();
+        let shakeX = 0, shakeY = 0;
+        if (state.shakeTime > 0) {
+          const factor = Math.min(state.shakeTime / 0.24, 1);
+          shakeX = rand(-1, 1) * state.shakeMag * factor;
+          shakeY = rand(-1, 1) * state.shakeMag * factor;
+        }
+
+        ctx.translate(W * 0.5 + shakeX, H * 0.5 + shakeY);
+        ctx.scale(state.camZoom, state.camZoom);
+        ctx.translate(-state.camX, -state.camY);
+
+        // Visible frustum bounds
+        const halfViewW = (W * 0.5) / state.camZoom + 120;
+        const halfViewH = (H * 0.5) / state.camZoom + 120;
+        const minX = state.camX - halfViewW;
+        const maxX = state.camX + halfViewW;
+        const minY = state.camY - halfViewH;
+        const maxY = state.camY + halfViewH;
+
+        // 1. Subtle Coordinate Grid & Arena Floor Accent
+        drawGrid(minX, maxX, minY, maxY);
+
+        // 2. Circular Neon Arena Boundary (layered strokes, zero shadowBlur)
+        drawCircularArenaBoundary();
+
+        // 3. Energy Shards (pre-rendered sprites + frustum culling)
+        drawShards(minX, maxX, minY, maxY);
+
+        // 4. Shockwaves (pooled + frustum culled)
+        for (let i = 0; i < state.shockwaveCount; i++) {
+          const sw = shockwavePool[i];
+          if (sw.x + sw.radius < minX || sw.x - sw.radius > maxX || sw.y + sw.radius < minY || sw.y - sw.radius > maxY) continue;
+          const alpha = clamp(sw.life / sw.maxLife, 0, 1);
+          ctx.globalAlpha = alpha * 0.78;
+          ctx.strokeStyle = sw.color;
+          ctx.lineWidth = sw.lineWidth * alpha + 1;
+          ctx.beginPath();
+          ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+
+        // 5. Player Tether Range Indicator Ring
+        if (state.mode === 'playing' && state.player && state.player.alive) {
+          const p = state.player;
+          ctx.save();
+          ctx.strokeStyle = p.color;
+          ctx.globalAlpha = p.tetherObj ? 0.18 : 0.09;
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([8, 10]);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.tetherRange, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // 6. Active Magnetic Tether Beams & Dotted Slingshot Guides
+        for (let i = 0; i < state.ships.length; i++) {
+          const ship = state.ships[i];
+          if (!ship.alive || !ship.tetherObj) continue;
+          const obj = ship.tetherObj;
+          const bMinX = Math.min(ship.x, obj.x);
+          const bMaxX = Math.max(ship.x, obj.x);
+          const bMinY = Math.min(ship.y, obj.y);
+          const bMaxY = Math.max(ship.y, obj.y);
+          if (bMaxX < minX || bMinX > maxX || bMaxY < minY || bMinY > maxY) continue;
+          drawTetherBeam(ship, obj);
+        }
+
+        // 7. World Physics Objects & Ring-Buffer Comet Trails
+        drawWorldObjects(minX, maxX, minY, maxY);
+
+        // 8. Pooled Pre-rendered Glow Particles
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < state.particleCount; i++) {
+          const p = particlePool[i];
+          if (p.x < minX || p.x > maxX || p.y < minY || p.y > maxY) continue;
+          const alpha = clamp(p.life / p.maxLife, 0, 1);
+          const d = p.size * (1.6 + 1.8 * alpha);
+          ctx.globalAlpha = alpha;
+          ctx.drawImage(getParticleSprite(p.color), p.x - d, p.y - d, d * 2, d * 2);
+        }
+        ctx.restore();
+
+        // 9. Ships (Bots & Player)
+        for (let i = 0; i < state.ships.length; i++) {
+          const ship = state.ships[i];
+          if (!ship.alive) continue;
+          if (ship.x + 65 < minX || ship.x - 65 > maxX || ship.y + 65 < minY || ship.y - 65 > maxY) continue;
+          drawShip(ship);
+        }
+
+        // 10. Pooled Floating Combat Text
+        ctx.textAlign = 'center';
+        for (let i = 0; i < state.floatingTextCount; i++) {
+          const ft = floatingTextPool[i];
+          if (ft.x < minX || ft.x > maxX || ft.y < minY || ft.y > maxY) continue;
+          const alpha = clamp(ft.life / (ft.maxLife * 0.45), 0, 1);
+          ctx.globalAlpha = alpha;
+          ctx.font = `900 ${ft.size}px Outfit, sans-serif`;
+          ctx.lineWidth = 4;
+          ctx.strokeStyle = 'rgba(7, 11, 20, 0.88)';
+          ctx.strokeText(ft.text, ft.x, ft.y);
+          ctx.fillStyle = ft.color;
+          ctx.fillText(ft.text, ft.x, ft.y);
+        }
+        ctx.globalAlpha = 1;
+
+        ctx.restore();
+
+        // 11. Throttled Circular Minimap
+        if (state.mode === 'playing') {
+          const mapStep = state.quality === 'eco' ? 5 : 3;
+          if (state.frameCount % mapStep === 0) {
+            drawMinimap();
+          }
+        }
+      }
+
+      function drawGrid(minX, maxX, minY, maxY) {
+        const gridSize = 110;
+        const bound = ARENA_RADIUS;
+        const startX = Math.max(-bound, Math.floor(minX / gridSize) * gridSize);
+        const endX = Math.min(bound, Math.ceil(maxX / gridSize) * gridSize);
+        const startY = Math.max(-bound, Math.floor(minY / gridSize) * gridSize);
+        const endY = Math.min(bound, Math.ceil(maxY / gridSize) * gridSize);
+
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.055)';
+        ctx.beginPath();
+        for (let x = startX; x <= endX; x += gridSize) {
+          ctx.moveTo(x, startY);
+          ctx.lineTo(x, endY);
+        }
+        for (let y = startY; y <= endY; y += gridSize) {
+          ctx.moveTo(startX, y);
+          ctx.lineTo(endX, y);
+        }
+        ctx.stroke();
+
+        // Subtle concentric arena guide rings
+        ctx.strokeStyle = 'rgba(129, 140, 248, 0.07)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, ARENA_RADIUS * 0.35, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, 0, ARENA_RADIUS * 0.7, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      function drawCircularArenaBoundary() {
+        // Layered translucent neon glow (zero shadowBlur)
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.16)';
+        ctx.lineWidth = 22;
+        ctx.beginPath();
+        ctx.arc(0, 0, ARENA_RADIUS, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(0, 0, ARENA_RADIUS, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(244, 114, 182, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, ARENA_RADIUS - 12, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      function drawShards(minX, maxX, minY, maxY) {
+        for (let i = 0; i < state.shards.length; i++) {
+          const sh = state.shards[i];
+          if (sh.x < minX || sh.x > maxX || sh.y < minY || sh.y > maxY) continue;
+          const sp = getShardSprite(sh.color);
+          const scale = (sh.radius / 9.5) * (1 + Math.sin(sh.phase) * 0.14);
+          const drawSize = sp.width * scale;
+          ctx.drawImage(sp, sh.x - drawSize * 0.5, sh.y - drawSize * 0.5, drawSize, drawSize);
+        }
+      }
+
+      function drawTetherBeam(ship, obj) {
+        const dx = obj.x - ship.x;
+        const dy = obj.y - ship.y;
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        const nx = -dy / len;
+        const ny = dx / len;
+
+        const segs = state.quality === 'eco' ? 8 : 12;
+        ctx.beginPath();
+        for (let i = 0; i <= segs; i++) {
+          const t = i / segs;
+          const wave = Math.sin(t * Math.PI * 3 - state.time * 18) * Math.sin(t * Math.PI) * 9;
+          const px = ship.x + dx * t + nx * wave;
+          const py = ship.y + dy * t + ny * wave;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+
+        // Layered translucent neon beam (no shadowBlur)
+        ctx.strokeStyle = ship.color;
+        ctx.globalAlpha = 0.22;
+        ctx.lineWidth = 11;
+        ctx.stroke();
+
+        ctx.globalAlpha = 0.68;
+        ctx.lineWidth = 3.5;
+        ctx.stroke();
+
+        // Crisp inner plasma core
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath();
+        ctx.moveTo(ship.x, ship.y);
+        ctx.lineTo(obj.x, obj.y);
+        ctx.stroke();
+
+        // Latch lock ring
+        ctx.strokeStyle = ship.color;
+        ctx.lineWidth = 2.5;
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath();
+        ctx.arc(obj.x, obj.y, obj.radius + 7, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+
+        // Player-only: Dotted Slingshot Trajectory Preview
+        if (ship.isPlayer) {
+          const speedSq = obj.vx * obj.vx + obj.vy * obj.vy;
+          if (speedSq > 55 * 55) {
+            const speed = Math.sqrt(speedSq);
+            const ux = obj.vx / speed;
+            const uy = obj.vy / speed;
+            const guideLen = clamp(speed * 0.34, 75, 220);
+            ctx.save();
+            ctx.strokeStyle = ship.color;
+            ctx.globalAlpha = 0.55;
+            ctx.lineWidth = 2.2;
+            ctx.setLineDash([6, 7]);
+            ctx.beginPath();
+            ctx.moveTo(obj.x, obj.y);
+            ctx.lineTo(obj.x + ux * guideLen, obj.y + uy * guideLen);
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+      }
+
+      function drawWorldObjects(minX, maxX, minY, maxY) {
+        const isHigh = state.quality === 'high';
+        for (let i = 0; i < state.objects.length; i++) {
+          const obj = state.objects[i];
+          const margin = obj.radius + (obj.trailCount > 1 ? 260 : 24);
+          if (obj.x + margin < minX || obj.x - margin > maxX || obj.y + margin < minY || obj.y - margin > maxY) {
+            continue;
+          }
+
+          // Ring-buffer comet trail
+          if (obj.trailCount > 1) {
+            const trailColor = obj.ownerColor || obj.color;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = trailColor;
+            for (let k = 1; k < obj.trailCount; k++) {
+              const prevIdx = (obj.trailHead + k - 1) % MAX_TRAIL_PTS;
+              const currIdx = (obj.trailHead + k) % MAX_TRAIL_PTS;
+              const t = k / obj.trailCount;
+              ctx.globalAlpha = t * 0.55;
+              ctx.lineWidth = obj.radius * 1.25 * t;
+              ctx.beginPath();
+              ctx.moveTo(obj.trailX[prevIdx], obj.trailY[prevIdx]);
+              ctx.lineTo(obj.trailX[currIdx], obj.trailY[currIdx]);
+              ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+          }
+
+          if (obj.x + obj.radius + 20 < minX || obj.x - obj.radius - 20 > maxX || obj.y + obj.radius + 20 < minY || obj.y - obj.radius - 20 > maxY) {
+            continue;
+          }
+
+          const isLethal = obj.launchedTimer > 0 && obj.ownerId;
+          const glowCol = isLethal ? (obj.ownerColor || obj.color) : obj.color;
+
+          if (isLethal || (isHigh && obj.type === 'mega_asteroid')) {
+            const halo = getGlowSprite(glowCol);
+            const hs = obj.radius * 3.1;
+            ctx.drawImage(halo, obj.x - hs * 0.5, obj.y - hs * 0.5, hs, hs);
+          }
+
+          if (obj.type === 'orb') {
+            const sp = sprites.orbDefault;
+            ctx.drawImage(sp, obj.x - sp.width * 0.5, obj.y - sp.height * 0.5);
+          } else if (obj.type === 'volatile') {
+            const sp = sprites.volatileCore;
+            const pulse = 1 + Math.sin(obj.pulsePhase) * 0.09;
+            ctx.save();
+            ctx.translate(obj.x, obj.y);
+            ctx.rotate(obj.rot);
+            ctx.scale(pulse, pulse);
+            ctx.drawImage(sp, -sp.width * 0.5, -sp.height * 0.5);
+            ctx.restore();
+          } else {
+            // Asteroid or Mega-Asteroid (layered translucent strokes, zero shadowBlur)
+            ctx.save();
+            ctx.translate(obj.x, obj.y);
+            ctx.rotate(obj.rot);
+
+            const verts = obj.verts;
+            ctx.beginPath();
+            ctx.moveTo(verts[0].x, verts[0].y);
+            for (let v = 1; v < verts.length; v++) {
+              ctx.lineTo(verts[v].x, verts[v].y);
+            }
+            ctx.closePath();
+
+            if (isLethal || obj.type === 'mega_asteroid') {
+              ctx.strokeStyle = isLethal ? glowCol : '#818cf8';
+              ctx.globalAlpha = 0.26;
+              ctx.lineWidth = obj.type === 'mega_asteroid' ? 11 : 8;
+              ctx.stroke();
+              ctx.globalAlpha = 1;
+            }
+
+            ctx.fillStyle = obj.type === 'mega_asteroid' ? '#1e1b4b' : '#1e293b';
+            ctx.fill();
+            ctx.strokeStyle = isLethal ? glowCol : obj.color;
+            ctx.lineWidth = obj.type === 'mega_asteroid' ? 3.2 : 2.4;
+            ctx.stroke();
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.arc(0, 0, obj.radius * 0.42, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+      }
+
+      function drawShip(ship) {
+        ctx.save();
+        ctx.translate(ship.x, ship.y);
+
+        // Pre-rendered soft ship glow halo
+        if (state.quality === 'high' || ship.isPlayer || ship.isBoosting) {
+          const halo = getGlowSprite(ship.color);
+          const hs = ship.radius * (ship.isBoosting ? 4.4 : 3.4);
+          ctx.drawImage(halo, -hs * 0.5, -hs * 0.5, hs, hs);
+        }
+
+        // Spawn shield ring
+        if (ship.spawnShield > 0) {
+          ctx.strokeStyle = '#38bdf8';
+          ctx.globalAlpha = 0.45 + Math.sin(state.time * 16) * 0.25;
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.arc(0, 0, ship.radius + 11, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+
+        // Hull HP arc
+        const hpRatio = clamp(ship.hp / ship.maxHp, 0, 1);
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.18)';
+        ctx.beginPath();
+        ctx.arc(0, 0, ship.radius + 6, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = hpRatio > 0.4 ? '#34d399' : '#fb7185';
+        ctx.beginPath();
+        ctx.arc(0, 0, ship.radius + 6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * hpRatio);
+        ctx.stroke();
+
+        // Ship Hull Geometry
+        ctx.save();
+        ctx.rotate(ship.angle);
+        const bodyColor = ship.hitFlash > 0 ? '#ffffff' : ship.color;
+
+        if (ship.tier >= 2) {
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+          ctx.strokeStyle = bodyColor;
+          ctx.lineWidth = 2;
+          const wingSpan = ship.radius * (1.05 + (ship.tier - 2) * 0.08);
+          ctx.beginPath();
+          ctx.moveTo(ship.radius * 0.2, -ship.radius * 0.5);
+          ctx.lineTo(-ship.radius * 0.9, -wingSpan);
+          ctx.lineTo(-ship.radius * 0.65, 0);
+          ctx.lineTo(-ship.radius * 0.9, wingSpan);
+          ctx.lineTo(ship.radius * 0.2, ship.radius * 0.5);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = '#0f172a';
+        ctx.strokeStyle = bodyColor;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(ship.radius * 1.18, 0);
+        ctx.lineTo(-ship.radius * 0.72, -ship.radius * 0.78);
+        ctx.lineTo(-ship.radius * 0.42, 0);
+        ctx.lineTo(-ship.radius * 0.72, ship.radius * 0.78);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = bodyColor;
+        ctx.beginPath();
+        ctx.arc(ship.radius * 0.08, 0, ship.radius * 0.34, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (ship.tier >= 4) {
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(ship.radius * 0.08, 0, ship.radius * 0.15, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        // Pre-rendered Golden Crown for #1 Leader
+        if (ship.id === state.leaderId && sprites.crown) {
+          const cy = -ship.radius - 25 + Math.sin(state.time * 5) * 2.5;
+          ctx.drawImage(sprites.crown, -24, cy - 24);
+        }
+
+        // Nameplate
+        ctx.font = '700 13px Outfit, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = ship.isPlayer ? '#ffffff' : 'rgba(226, 232, 240, 0.85)';
+        ctx.fillText(ship.name, 0, ship.radius + 23);
+
+        ctx.restore();
+      }
+
+      function drawMinimap() {
+        const mw = minimapCanvas.width;
+        const mh = minimapCanvas.height;
+        const cx = mw * 0.5;
+        const cy = mh * 0.5;
+        const mapR = cx - 4;
+        const scale = mapR / ARENA_RADIUS;
+
+        mctx.clearRect(0, 0, mw, mh);
+
+        // Circular radar background & crosshair
+        mctx.fillStyle = 'rgba(7, 11, 20, 0.85)';
+        mctx.beginPath();
+        mctx.arc(cx, cy, mapR, 0, Math.PI * 2);
+        mctx.fill();
+
+        mctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+        mctx.lineWidth = 1.5;
+        mctx.stroke();
+
+        mctx.fillStyle = 'rgba(148, 163, 184, 0.14)';
+        mctx.fillRect(cx - 0.5, 4, 1, mh - 8);
+        mctx.fillRect(4, cy - 0.5, mw - 8, 1);
+
+        // Volatile cores (orange dots)
+        mctx.fillStyle = '#fb923c';
+        for (let i = 0; i < state.objects.length; i++) {
+          const obj = state.objects[i];
+          if (obj.type === 'volatile') {
+            mctx.fillRect(cx + obj.x * scale - 1.5, cy + obj.y * scale - 1.5, 3, 3);
+          }
+        }
+
+        // Bots & #1 Leader
+        for (let i = 0; i < state.ships.length; i++) {
+          const s = state.ships[i];
+          if (!s.alive || s.isPlayer) continue;
+          const isLeader = s.id === state.leaderId;
+          mctx.fillStyle = isLeader ? '#fbbf24' : 'rgba(148, 163, 184, 0.6)';
+          const sz = isLeader ? 6 : 3.5;
+          mctx.fillRect(cx + s.x * scale - sz * 0.5, cy + s.y * scale - sz * 0.5, sz, sz);
+        }
+
+        // Player dot
+        if (state.player && state.player.alive) {
+          const px = cx + state.player.x * scale;
+          const py = cy + state.player.y * scale;
+          mctx.fillStyle = 'rgba(34, 211, 238, 0.45)';
+          mctx.fillRect(px - 5, py - 5, 10, 10);
+          mctx.fillStyle = '#ffffff';
+          mctx.fillRect(px - 3, py - 3, 6, 6);
+        }
+      }
+
+      // =======================================================================
+      // 13. DIRTY-CHECKED HUD & UI FLOW
+      // =======================================================================
+      const hudOverlay = document.getElementById('hudOverlay');
+      const startOverlay = document.getElementById('startOverlay');
+      const gameOverOverlay = document.getElementById('gameOverOverlay');
+      const nicknameInput = document.getElementById('nicknameInput');
+      const colorSwatches = document.getElementById('colorSwatches');
+      const playBtn = document.getElementById('playBtn');
+      const playAgainBtn = document.getElementById('playAgainBtn');
+      const backToMenuBtn = document.getElementById('backToMenuBtn');
+      const muteBtn = document.getElementById('muteBtn');
+      const iconSoundOn = document.getElementById('iconSoundOn');
+      const iconSoundOff = document.getElementById('iconSoundOff');
+      const qualityBtn = document.getElementById('qualityBtn');
+      const hudFps = document.getElementById('hudFps');
+      const hudQualityLabel = document.getElementById('hudQualityLabel');
+      const hudAliveCount = document.getElementById('hudAliveCount');
+      const hudScore = document.getElementById('hudScore');
+      const hudKills = document.getElementById('hudKills');
+      const hudTierBadge = document.getElementById('hudTierBadge');
+      const hudMegaHint = document.getElementById('hudMegaHint');
+      const hudHpBar = document.getElementById('hudHpBar');
+      const hudHpText = document.getElementById('hudHpText');
+      const hudBoostBar = document.getElementById('hudBoostBar');
+      const hudBoostText = document.getElementById('hudBoostText');
+      const hudCoords = document.getElementById('hudCoords');
+      const leaderboardList = document.getElementById('leaderboardList');
+      const leaderboardPlayerExtra = document.getElementById('leaderboardPlayerExtra');
+      const mobileControls = document.getElementById('mobileControls');
+      const touchTetherBtn = document.getElementById('touchTetherBtn');
+      const touchBoostBtn = document.getElementById('touchBoostBtn');
+
+      let lastLeaderboardUpdate = 0;
+      const hudCache = {
+        score: '',
+        kills: -1,
+        tier: '',
+        hpPct: -1,
+        hpText: '',
+        boostPct: -1,
+        coords: '',
+        alive: -1
+      };
+
+      function buildColorSwatches() {
+        colorSwatches.innerHTML = '';
+        PLAYER_COLORS.forEach((c, idx) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.title = c.name;
+          btn.className = `color-swatch w-8 h-8 rounded-full cursor-pointer ${idx === state.selectedColorIdx ? 'selected' : ''}`;
+          btn.style.backgroundColor = c.hex;
+          btn.addEventListener('click', () => {
+            state.selectedColorIdx = idx;
+            buildColorSwatches();
+          });
+          colorSwatches.appendChild(btn);
+        });
+      }
+
+      function updateHUD(sortedShips) {
+        const p = state.player;
+        if (!p) return;
+
+        const scoreStr = Math.floor(p.score).toLocaleString();
+        if (hudCache.score !== scoreStr) {
+          hudCache.score = scoreStr;
+          hudScore.textContent = scoreStr;
+        }
+
+        if (hudCache.kills !== p.kills) {
+          hudCache.kills = p.kills;
+          hudKills.textContent = p.kills;
+        }
+
+        const tierInfo = getTierForScore(p.score);
+        if (hudCache.tier !== tierInfo.label) {
+          hudCache.tier = tierInfo.label;
+          hudTierBadge.textContent = tierInfo.label;
+          hudMegaHint.textContent = p.tier >= 3 ? 'Mega-Asteroids UNLOCKED' : 'Mega-Asteroids at Tier 3';
+        }
+
+        const hpPct = Math.round(clamp((p.hp / p.maxHp) * 100, 0, 100));
+        if (hudCache.hpPct !== hpPct) {
+          hudCache.hpPct = hpPct;
+          hudHpBar.style.width = `${hpPct}%`;
+        }
+        const hpStr = `${Math.ceil(p.hp)} / ${p.maxHp}`;
+        if (hudCache.hpText !== hpStr) {
+          hudCache.hpText = hpStr;
+          hudHpText.textContent = hpStr;
+        }
+
+        const boostPct = Math.round(clamp((p.boost / p.maxBoost) * 100, 0, 100));
+        if (hudCache.boostPct !== boostPct) {
+          hudCache.boostPct = boostPct;
+          hudBoostBar.style.width = `${boostPct}%`;
+          hudBoostText.textContent = `${boostPct}%`;
+        }
+
+        if (hudCache.alive !== sortedShips.length) {
+          hudCache.alive = sortedShips.length;
+          hudAliveCount.textContent = sortedShips.length;
+        }
+
+        // Throttle leaderboard & coords DOM updates to 4Hz
+        if (state.time - lastLeaderboardUpdate > 0.25) {
+          lastLeaderboardUpdate = state.time;
+
+          const coordStr = `${Math.round(p.x)}, ${Math.round(p.y)}`;
+          if (hudCache.coords !== coordStr) {
+            hudCache.coords = coordStr;
+            hudCoords.textContent = coordStr;
+          }
+
+          let html = '';
+          const top8 = sortedShips.slice(0, 8);
+          let playerInTop8 = false;
+
+          for (let i = 0; i < top8.length; i++) {
+            const s = top8[i];
+            const rank = i + 1;
+            const isMe = s.isPlayer;
+            if (isMe) playerInTop8 = true;
+            const rowClass = isMe
+              ? 'bg-cyan-500/20 text-cyan-200 font-bold rounded-lg px-1.5 py-0.5 border border-cyan-400/30'
+              : 'text-slate-300 px-1.5 py-0.5';
+            const prefix = rank === 1 ? '👑 ' : `${rank}. `;
+            html += `
+              <div class="flex items-center justify-between gap-2 ${rowClass}">
+                <span class="truncate">${prefix}${escapeHtml(s.name)}</span>
+                <span class="font-mono-num text-[11px] ${rank === 1 ? 'text-amber-300' : ''}">${Math.floor(s.score)}</span>
+              </div>`;
+          }
+          leaderboardList.innerHTML = html;
+
+          if (!playerInTop8 && p.alive) {
+            const myRank = sortedShips.indexOf(p) + 1;
+            leaderboardPlayerExtra.classList.remove('hidden');
+            leaderboardPlayerExtra.innerHTML = `
+              <div class="flex items-center justify-between gap-2 bg-cyan-500/20 text-cyan-200 font-bold rounded-lg px-1.5 py-0.5 border border-cyan-400/30">
+                <span class="truncate">${myRank}. ${escapeHtml(p.name)}</span>
+                <span class="font-mono-num text-[11px]">${Math.floor(p.score)}</span>
+              </div>`;
+          } else {
+            leaderboardPlayerExtra.classList.add('hidden');
+          }
+        }
+      }
+
+      function startGame() {
+        sound.ensureContext();
+        const rawName = nicknameInput.value.trim();
+        const name = rawName ? rawName.slice(0, 14) : 'PILOT';
+        const color = PLAYER_COLORS[state.selectedColorIdx].hex;
+
+        // Remove any previous dead player ship
+        for (let i = state.ships.length - 1; i >= 0; i--) {
+          if (state.ships[i].isPlayer) swapPop(state.ships, i);
+        }
+
+        const pt = findSafeSpawnPoint(420);
+        const player = createShip({ name, color, isPlayer: true, x: pt.x, y: pt.y });
+        state.player = player;
+        state.ships.push(player);
+        state.camX = player.x;
+        state.camY = player.y;
+        state.playStartTime = state.time;
+        state.peakRank = state.ships.length;
+        state.lmbDown = false;
+        state.rmbDown = false;
+        state.spaceDown = false;
+        state.mode = 'playing';
+
+        // Reset HUD cache
+        hudCache.score = '';
+        hudCache.kills = -1;
+        hudCache.tier = '';
+        hudCache.hpPct = -1;
+        hudCache.boostPct = -1;
+        lastLeaderboardUpdate = 0;
+
+        startOverlay.classList.add('hidden');
+        gameOverOverlay.classList.add('hidden');
+        gameOverOverlay.classList.remove('flex');
+        hudOverlay.classList.remove('hidden');
+
+        // Show touch action buttons on touch devices
+        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+          mobileControls.classList.remove('hidden');
+          mobileControls.classList.add('flex');
+        }
+      }
+
+      function showGameOverScreen(killerName) {
+        sound.stopTetherHum();
+        hudOverlay.classList.add('hidden');
+        gameOverOverlay.classList.remove('hidden');
+        gameOverOverlay.classList.add('flex');
+
+        const p = state.player;
+        document.getElementById('goKiller').textContent = killerName || 'Arena Hazard';
+        document.getElementById('goScore').textContent = p ? Math.floor(p.score).toLocaleString() : '0';
+        document.getElementById('goKills').textContent = p ? p.kills : '0';
+        document.getElementById('goRank').textContent = `#${Math.min(state.peakRank, state.ships.length + 1)}`;
+        document.getElementById('goTime').textContent = formatDuration(state.time - state.playStartTime);
+      }
+
+      function backToMenu() {
+        gameOverOverlay.classList.add('hidden');
+        gameOverOverlay.classList.remove('flex');
+        startOverlay.classList.remove('hidden');
+        state.mode = 'menu';
+      }
+
+      function toggleAudioMute() {
+        const muted = sound.toggleMute();
+        iconSoundOn.classList.toggle('hidden', muted);
+        iconSoundOff.classList.toggle('hidden', !muted);
+      }
+
+      function toggleQuality() {
+        state.quality = state.quality === 'high' ? 'eco' : 'high';
+        hudQualityLabel.textContent = state.quality === 'high' ? 'HIGH' : 'ECO';
+        hudQualityLabel.classList.toggle('text-cyan-300', state.quality === 'high');
+        hudQualityLabel.classList.toggle('text-amber-300', state.quality === 'eco');
+        resizeCanvas();
+      }
+
+      // =======================================================================
+      // 14. INPUT LISTENERS (Mouse, Keyboard & Touch)
+      // =======================================================================
+      window.addEventListener('resize', resizeCanvas);
+
+      window.addEventListener('mousemove', (e) => {
+        state.mouseScreenX = e.clientX;
+        state.mouseScreenY = e.clientY;
+      });
+
+      canvas.addEventListener('mousedown', (e) => {
+        if (state.mode !== 'playing' || !state.player || !state.player.alive) return;
+        if (e.button === 0) {
+          state.lmbDown = true;
+          attemptLatch(state.player, state.mouseWorldX, state.mouseWorldY);
+        } else if (e.button === 2) {
+          state.rmbDown = true;
+        }
+      });
+
+      window.addEventListener('mouseup', (e) => {
+        if (e.button === 0) {
+          state.lmbDown = false;
+          if (state.mode === 'playing' && state.player && state.player.tetherObj) {
+            releaseTether(state.player, true);
+          }
+        } else if (e.button === 2) {
+          state.rmbDown = false;
+        }
+      });
+
+      canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+      window.addEventListener('keydown', (e) => {
+        if (document.activeElement === nicknameInput) {
+          if (e.key === 'Enter') startGame();
+          return;
+        }
+        if (e.code === 'Space') {
+          e.preventDefault();
+          state.spaceDown = true;
+        } else if (e.key === 'm' || e.key === 'M') {
+          toggleAudioMute();
+        }
+      });
+
+      window.addEventListener('keyup', (e) => {
+        if (e.code === 'Space') {
+          state.spaceDown = false;
+        }
+      });
+
+      // Touch steering on canvas
+      canvas.addEventListener('touchstart', (e) => {
+        if (state.mode !== 'playing' || e.touches.length === 0) return;
+        state.mouseScreenX = e.touches[0].clientX;
+        state.mouseScreenY = e.touches[0].clientY;
+      }, { passive: true });
+
+      canvas.addEventListener('touchmove', (e) => {
+        if (state.mode !== 'playing' || e.touches.length === 0) return;
+        state.mouseScreenX = e.touches[0].clientX;
+        state.mouseScreenY = e.touches[0].clientY;
+      }, { passive: true });
+
+      touchTetherBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        state.lmbDown = true;
+        if (state.player && state.player.alive) {
+          attemptLatch(state.player, state.mouseWorldX, state.mouseWorldY);
+        }
+      });
+      touchTetherBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        state.lmbDown = false;
+        if (state.player && state.player.tetherObj) {
+          releaseTether(state.player, true);
+        }
+      });
+
+      touchBoostBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        state.spaceDown = true;
+      });
+      touchBoostBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        state.spaceDown = false;
+      });
+
+      muteBtn.addEventListener('click', toggleAudioMute);
+      qualityBtn.addEventListener('click', toggleQuality);
+      playBtn.addEventListener('click', startGame);
+      playAgainBtn.addEventListener('click', startGame);
+      backToMenuBtn.addEventListener('click', backToMenu);
+
+      // =======================================================================
+      // 15. MAIN ANIMATION LOOP & BOOTSTRAP
+      // =======================================================================
+      let lastFrameTime = 0;
+
+      function gameLoop(timestamp) {
+        if (!lastFrameTime) lastFrameTime = timestamp;
+        const rawDt = (timestamp - lastFrameTime) / 1000;
+        lastFrameTime = timestamp;
+        const dt = Math.min(rawDt, 0.05);
+
+        state.fpsFrames++;
+        if (timestamp - state.fpsLastTime >= 500) {
+          state.fps = Math.round((state.fpsFrames * 1000) / (timestamp - state.fpsLastTime));
+          state.fpsFrames = 0;
+          state.fpsLastTime = timestamp;
+          hudFps.textContent = `${state.fps} FPS`;
+          hudFps.className = `font-mono-num font-bold ${
+            state.fps >= 50 ? 'text-emerald-400' : (state.fps >= 30 ? 'text-amber-400' : 'text-rose-400')
+          }`;
+        }
+
+        updateSimulation(dt);
+        render();
+        requestAnimationFrame(gameLoop);
+      }
+
+      window.addEventListener('load', () => {
+        buildSpriteCache();
+        resizeCanvas();
+        buildColorSwatches();
+        initArena();
+        requestAnimationFrame(gameLoop);
+      });
+    })();
+  </script>
+</body>
+</html>
